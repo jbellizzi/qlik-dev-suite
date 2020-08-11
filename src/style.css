@@ -1,0 +1,7 @@
+.dev-suite__selected {
+	border: 2px solid #2294f2 !important;
+}
+
+.qv-gridresize-point .visual-cue {
+	background: none;
+}
