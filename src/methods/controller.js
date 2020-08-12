@@ -13,6 +13,7 @@ import {
 	mapTo,
 	delay,
 	takeUntil,
+	take,
 } from "rxjs/operators"
 
 export default qlik => [
@@ -61,12 +62,6 @@ export default qlik => [
 			),
 			shareReplay(1)
 		)
-
-		sheetObjects$.subscribe(objects => {
-			objects.forEach(({ el }) => {
-				select(el).on("mousedown.drag", null)
-			})
-		})
 
 		/** document click listener */
 		const documentClick$ = fromEvent(document, "click").pipe(
@@ -232,16 +227,139 @@ export default qlik => [
 			)
 			.subscribe()
 
-		const mouseDown$ = fromEvent(document, "mousedown")
-		const mouseMove$ = fromEvent(document, "mousemove")
-		const mouseUp$ = fromEvent(document, "mouseup")
+		const objectMouseDown$ = new Subject()
+		// .pipe(shareReplay(1))
+		const objectMouseMove$ = new Subject()
+		// .pipe(shareReplay(1))
+		const objectMouseUp$ = new Subject()
+		// .pipe(shareReplay(1))
+		const dragged$ = new BehaviorSubject(false)
 
-		const drag$ = mouseDown$.pipe(switchMap(() => mouseMove$.pipe(takeUntil(mouseUp$))))
-
-		drag$.subscribe(evt => {
-			// document.querySelector("#grid").classList.remove("dragging")
-			console.log(evt)
+		sheetObjects$.subscribe(objects => {
+			objects.forEach(object => {
+				// select(el).on("mousedown.drag", null)
+				select(object.el).call(
+					drag()
+						.on("start", () =>
+							objectMouseDown$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
+						)
+						.on("drag", () =>
+							objectMouseMove$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
+						)
+						.on("end", () =>
+							objectMouseUp$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
+						)
+				)
+			})
 		})
+		// const mouseDown$ = fromEvent(document, "mousedown")
+		// const mouseMove$ = fromEvent(document, "mousemove")
+		// const mouseUp$ = fromEvent(document, "mouseup")
+
+		objectMouseDown$
+			.pipe(
+				switchMap(() =>
+					objectMouseMove$.pipe(
+						tap(({ object }) => {
+							const { x, y, width, height } = object.el.getBoundingClientRect()
+							select("body")
+								.append("div")
+								.attr("class", "dev-suite__shadow-element")
+								.style("width", `${width}px`)
+								.style("height", `${height}px`)
+								.style("left", `${x}px`)
+								.style("top", `${y}px`)
+						}),
+						take(1)
+					)
+				)
+			)
+			.subscribe()
+
+		const dragDelta$ = objectMouseDown$.pipe(
+			map(({ clientX, clientY, object }) => {
+				const { x, y } = object.el.getBoundingClientRect()
+				return { startObjectX: x, startObjectY: y, clientX, clientY }
+			}),
+			switchMap(({ startObjectX, startObjectY, clientX: startClientX, clientY: startClientY }) =>
+				objectMouseMove$.pipe(
+					tap(() => dragged$.next(true)),
+					map(({ object, clientX, clientY }) => ({
+						x: clientX - startClientX,
+						y: clientY - startClientY,
+						startObjectX,
+						startObjectY,
+						object,
+					})),
+					takeUntil(objectMouseUp$)
+				)
+			)
+		)
+
+		dragDelta$.subscribe(({ object, x, y, startObjectX, startObjectY }) => {
+			select(".dev-suite__shadow-element")
+				.style("left", `${startObjectX + x}px`)
+				.style("top", `${startObjectY + y}px`)
+		})
+
+		const objectDragNewPos$ = objectMouseUp$.pipe(
+			withLatestFrom(dragged$),
+			filter(([_, dragged]) => dragged),
+			tap(() => selectAll(".dev-suite__shadow-element").remove()),
+			tap(() => dragged$.next(false)),
+			withLatestFrom(dragDelta$, gridSize$),
+			map(([_, { object, x, y }, { width: gridWidth, height: gridHeight }]) => {
+				const xDeltaAsAPercent = (x / gridWidth) * 100
+				const yDeltaAsAPercent = (y / gridHeight) * 100
+				return { object, xDeltaAsAPercent, yDeltaAsAPercent }
+			})
+		)
+
+		const objectDragNewProps$ = objectDragNewPos$.pipe(
+			withLatestFrom(sheetProps$),
+			map(([{ object, xDeltaAsAPercent, yDeltaAsAPercent }, sheetProps]) => {
+				// const updateCell = sheetProps.cells.find(cell => cell.name === object.id)
+				const updateCells = sheetProps.cells.map(cell => {
+					if (cell.name === object.id) {
+						return {
+							...cell,
+							bounds: { ...cell.bounds, x: cell.bounds.x + xDeltaAsAPercent, y: cell.bounds.y + yDeltaAsAPercent },
+							col: undefined,
+							row: undefined,
+							colspan: undefined,
+							rowspan: undefined,
+						}
+					} else return cell
+				})
+
+				return { ...sheetProps, cells: updateCells }
+			})
+		)
+
+		objectDragNewProps$.pipe(withLatestFrom(sheetObj$)).subscribe(([newProps, sheetObj]) => {
+			sheetObj.setProperties(newProps)
+		})
+		// objectDragNewPos$.pipe(
+		// 	withLatestFrom
+		// )
+		// .pipe(withLatestFrom(sheetObj$, dragDelta$, gridSize$))
+		// .subscribe(([_, sheetObj, { object, x, y, startObjectX, startObjectY }, { width: gridWidth, height: gridHeight }]) => {
+		// 	console.log(x, startObjectX)
+		// 	const deltaX = x - startObjectX
+		// 	const deltaY = y - startObjectY
+
+		// 	const { x: objectStartX, y: objectStartY } = object.el.getBoundingClientRect()
+
+		// 	const pixelWidthAsAPercent = ((objectStartX + deltaX) / gridWidth) * 100
+		// 	const pixelHeightAsAPercent = ((objectStartY = deltaY) / gridHeight) * 100
+
+		// 	selectAll(".dev-suite__shadow-element").remove()
+		// })
+
+		// drag$.subscribe(evt => {
+		// 	// document.querySelector("#grid").classList.remove("dragging")
+		// 	console.log(evt)
+		// })
 		// .pipe(
 		// 	withLatestFrom(sheetObjects$),
 		// 	map(([{ target }]))
