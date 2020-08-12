@@ -5,3 +5,7 @@
 .qv-gridresize-point .visual-cue {
 	background: none;
 }
+
+.drag-and-drop-canvas {
+	display: none;
+}
