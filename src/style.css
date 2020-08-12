@@ -9,3 +9,10 @@
 .drag-and-drop-canvas {
 	display: none;
 }
+
+.dev-suite__shadow-element {
+	position: fixed;
+	background-color: #819199;
+	z-index: 999;
+	opacity: 0.25;
+}
