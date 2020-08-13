@@ -227,39 +227,44 @@ export default qlik => [
 			)
 			.subscribe()
 
+		/** drag subjects */
 		const objectMouseDown$ = new Subject()
-		// .pipe(shareReplay(1))
 		const objectMouseMove$ = new Subject()
-		// .pipe(shareReplay(1))
 		const objectMouseUp$ = new Subject()
-		// .pipe(shareReplay(1))
 		const dragged$ = new BehaviorSubject(false)
 
+		/** drag initializers */
 		sheetObjects$.subscribe(objects => {
+			/** for each object.. */
 			objects.forEach(object => {
-				// select(el).on("mousedown.drag", null)
+				/** select object and call d3 drag */
 				select(object.el).call(
 					drag()
-						.on("start", () =>
+						/** start listener */
+						.on("start", () => {
 							objectMouseDown$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
-						)
-						.on("drag", () =>
+						})
+						/** drag listener */
+						.on("drag", () => {
 							objectMouseMove$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
-						)
+						})
+						/** end listener */
 						.on("end", () =>
 							objectMouseUp$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
 						)
 				)
 			})
 		})
-		// const mouseDown$ = fromEvent(document, "mousedown")
-		// const mouseMove$ = fromEvent(document, "mousemove")
-		// const mouseUp$ = fromEvent(document, "mouseup")
 
+		/** add shadow element only when dragging */
 		objectMouseDown$
 			.pipe(
 				switchMap(() =>
+					/** switch to mouse move stream */
 					objectMouseMove$.pipe(
+						/** set dragged$ to true */
+						tap(() => dragged$.next(true)),
+						/** create the shadow element */
 						tap(({ object }) => {
 							const { x, y, width, height } = object.el.getBoundingClientRect()
 							select("body")
@@ -270,20 +275,24 @@ export default qlik => [
 								.style("left", `${x}px`)
 								.style("top", `${y}px`)
 						}),
+						/** only run 1 time */
 						take(1)
 					)
 				)
 			)
 			.subscribe()
 
+		/** calculate drag distance */
 		const dragDelta$ = objectMouseDown$.pipe(
+			/** get mouse down start position, and also original object position */
 			map(({ clientX, clientY, object }) => {
 				const { x, y } = object.el.getBoundingClientRect()
 				return { startObjectX: x, startObjectY: y, clientX, clientY }
 			}),
+			/** switch to mouse move stream */
 			switchMap(({ startObjectX, startObjectY, clientX: startClientX, clientY: startClientY }) =>
 				objectMouseMove$.pipe(
-					tap(() => dragged$.next(true)),
+					/** on each mouse move, calculate new x and y pos of shadow element */
 					map(({ object, clientX, clientY }) => ({
 						x: clientX - startClientX,
 						y: clientY - startClientY,
@@ -291,23 +300,33 @@ export default qlik => [
 						startObjectY,
 						object,
 					})),
+					/** stop when mouseup */
 					takeUntil(objectMouseUp$)
 				)
-			)
+			),
+			shareReplay(1)
 		)
 
-		dragDelta$.subscribe(({ object, x, y, startObjectX, startObjectY }) => {
+		/** render shadow element on drag update */
+		dragDelta$.subscribe(({ x, y, startObjectX, startObjectY }) => {
 			select(".dev-suite__shadow-element")
 				.style("left", `${startObjectX + x}px`)
 				.style("top", `${startObjectY + y}px`)
 		})
 
+		/** get new object position as sheet percent */
 		const objectDragNewPos$ = objectMouseUp$.pipe(
+			/** with dragged$ */
 			withLatestFrom(dragged$),
+			/** don't run if mouseup occured but no drag */
 			filter(([_, dragged]) => dragged),
+			/** remove the shadow element */
 			tap(() => selectAll(".dev-suite__shadow-element").remove()),
+			/** set dragged$ to false */
 			tap(() => dragged$.next(false)),
+			/** with dragDelta$ and gridSize$ */
 			withLatestFrom(dragDelta$, gridSize$),
+			/** map delta x and y to delta percentage */
 			map(([_, { object, x, y }, { width: gridWidth, height: gridHeight }]) => {
 				const xDeltaAsAPercent = (x / gridWidth) * 100
 				const yDeltaAsAPercent = (y / gridHeight) * 100
@@ -315,12 +334,17 @@ export default qlik => [
 			})
 		)
 
+		/** calculate new property for sheet */
 		const objectDragNewProps$ = objectDragNewPos$.pipe(
+			/** with sheetProps$ */
 			withLatestFrom(sheetProps$),
+			/** create new prop object */
 			map(([{ object, xDeltaAsAPercent, yDeltaAsAPercent }, sheetProps]) => {
-				// const updateCell = sheetProps.cells.find(cell => cell.name === object.id)
+				/** map prop cells */
 				const updateCells = sheetProps.cells.map(cell => {
+					/** if cell is the object dragged */
 					if (cell.name === object.id) {
+						/** update bounds to new delta position */
 						return {
 							...cell,
 							bounds: { ...cell.bounds, x: cell.bounds.x + xDeltaAsAPercent, y: cell.bounds.y + yDeltaAsAPercent },
@@ -329,16 +353,20 @@ export default qlik => [
 							colspan: undefined,
 							rowspan: undefined,
 						}
-					} else return cell
+					}
+					// else return cell
+					else return cell
 				})
 
 				return { ...sheetProps, cells: updateCells }
 			})
 		)
 
+		/** with new sheet props, set properties */
 		objectDragNewProps$.pipe(withLatestFrom(sheetObj$)).subscribe(([newProps, sheetObj]) => {
 			sheetObj.setProperties(newProps)
 		})
+
 		// objectDragNewPos$.pipe(
 		// 	withLatestFrom
 		// )
