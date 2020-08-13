@@ -2,6 +2,10 @@
 	border: 2px solid #2294f2 !important;
 }
 
+.qv-mode-edit:not(.ssa-in-edit) #grid .dev-suite__selected .qv-object {
+	opacity: 1;
+}
+
 .qv-gridresize-point .visual-cue {
 	background: none;
 }

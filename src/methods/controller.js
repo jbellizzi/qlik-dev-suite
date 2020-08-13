@@ -1,5 +1,6 @@
 import { select, selectAll, event } from "d3-selection"
-import { drag } from "d3-drag"
+// import { drag } from "d3-drag"
+import { drag } from "./drag"
 import { Subject, from, BehaviorSubject, merge, fromEvent, of } from "rxjs"
 import {
 	withLatestFrom,
@@ -63,6 +64,7 @@ export default qlik => [
 			shareReplay(1)
 		)
 
+		/** layer object z-index based on order */
 		sheetObjects$.subscribe(objects => {
 			objects.forEach(({ el }, i) => {
 				el.style.zIndex = i + 1
@@ -239,147 +241,149 @@ export default qlik => [
 		const objectMouseUp$ = new Subject()
 		const dragged$ = new BehaviorSubject(false)
 
+		// $(document).off("click")
 		/** drag initializers */
 		sheetObjects$.subscribe(objects => {
 			/** for each object.. */
 			objects.forEach(object => {
 				/** select object and call d3 drag */
-				select(object.el).call(
-					drag()
-						/** start listener */
-						.on("start", () => {
-							objectMouseDown$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
-						})
-						/** drag listener */
-						.on("drag", () => {
-							objectMouseMove$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
-						})
-						/** end listener */
-						.on("end", () =>
-							objectMouseUp$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
-						)
-				)
+				select(object.el).call(drag())
+				// select(object.el).call(
+				// 	drag()
+				// 	// /** start listener */
+				// 	// .on("start", () => {
+				// 	// 	objectMouseDown$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
+				// 	// })
+				// 	// /** drag listener */
+				// 	// .on("drag", () => {
+				// 	// 	objectMouseMove$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
+				// 	// })
+				// 	// /** end listener */
+				// 	// .on("end", () =>
+				// 	// 	objectMouseUp$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
+				// 	// )
+				// )
 			})
 		})
 
-		/** add shadow element only when dragging */
-		objectMouseDown$
-			.pipe(
-				switchMap(() =>
-					/** switch to mouse move stream */
-					objectMouseMove$.pipe(
-						/** set dragged$ to true */
-						tap(() => dragged$.next(true)),
-						/** create the shadow element */
-						tap(({ object }) => {
-							const { x, y, width, height } = object.el.getBoundingClientRect()
-							select("body")
-								.append("div")
-								.attr("class", "dev-suite__shadow-element")
-								.style("width", `${width}px`)
-								.style("height", `${height}px`)
-								.style("left", `${x}px`)
-								.style("top", `${y}px`)
-						}),
-						/** only run 1 time */
-						take(1)
-					)
-				)
-			)
-			.subscribe()
+		// /** add shadow element only when dragging */
+		// objectMouseDown$
+		// 	.pipe(
+		// 		switchMap(() =>
+		// 			/** switch to mouse move stream */
+		// 			objectMouseMove$.pipe(
+		// 				/** set dragged$ to true */
+		// 				tap(() => dragged$.next(true)),
+		// 				/** create the shadow element */
+		// 				tap(({ object }) => {
+		// 					const { x, y, width, height } = object.el.getBoundingClientRect()
+		// 					select("body")
+		// 						.append("div")
+		// 						.attr("class", "dev-suite__shadow-element")
+		// 						.style("width", `${width}px`)
+		// 						.style("height", `${height}px`)
+		// 						.style("left", `${x}px`)
+		// 						.style("top", `${y}px`)
+		// 				}),
+		// 				/** only run 1 time */
+		// 				take(1)
+		// 			)
+		// 		)
+		// 	)
+		// 	.subscribe()
 
-		/** calculate drag distance */
-		const dragDelta$ = objectMouseDown$.pipe(
-			/** get mouse down start position, and also original object position */
-			map(({ clientX, clientY, object }) => {
-				const { x, y } = object.el.getBoundingClientRect()
-				return { startObjectX: x, startObjectY: y, clientX, clientY }
-			}),
-			/** switch to mouse move stream */
-			switchMap(({ startObjectX, startObjectY, clientX: startClientX, clientY: startClientY }) =>
-				objectMouseMove$.pipe(
-					/** on each mouse move, calculate new x and y pos of shadow element */
-					map(({ object, clientX, clientY }) => ({
-						x: clientX - startClientX,
-						y: clientY - startClientY,
-						startObjectX,
-						startObjectY,
-						object,
-					})),
-					/** stop when mouseup */
-					takeUntil(objectMouseUp$)
-				)
-			),
-			shareReplay(1)
-		)
+		// /** calculate drag distance */
+		// const dragDelta$ = objectMouseDown$.pipe(
+		// 	/** get mouse down start position, and also original object position */
+		// 	map(({ clientX, clientY, object }) => {
+		// 		const { x, y } = object.el.getBoundingClientRect()
+		// 		return { startObjectX: x, startObjectY: y, clientX, clientY }
+		// 	}),
+		// 	/** switch to mouse move stream */
+		// 	switchMap(({ startObjectX, startObjectY, clientX: startClientX, clientY: startClientY }) =>
+		// 		objectMouseMove$.pipe(
+		// 			/** on each mouse move, calculate new x and y pos of shadow element */
+		// 			map(({ object, clientX, clientY }) => ({
+		// 				x: clientX - startClientX,
+		// 				y: clientY - startClientY,
+		// 				startObjectX,
+		// 				startObjectY,
+		// 				object,
+		// 			})),
+		// 			/** stop when mouseup */
+		// 			takeUntil(objectMouseUp$)
+		// 		)
+		// 	),
+		// 	shareReplay(1)
+		// )
 
-		/** render shadow element on drag update */
-		dragDelta$.subscribe(({ x, y, startObjectX, startObjectY }) => {
-			select(".dev-suite__shadow-element")
-				.style("left", `${startObjectX + x}px`)
-				.style("top", `${startObjectY + y}px`)
-		})
+		// /** render shadow element on drag update */
+		// dragDelta$.subscribe(({ x, y, startObjectX, startObjectY }) => {
+		// 	select(".dev-suite__shadow-element")
+		// 		.style("left", `${startObjectX + x}px`)
+		// 		.style("top", `${startObjectY + y}px`)
+		// })
 
-		/** get new object position as sheet percent */
-		const objectDragNewPos$ = objectMouseUp$.pipe(
-			/** with dragged$ */
-			withLatestFrom(dragged$),
-			/** don't run if mouseup occured but no drag */
-			filter(([_, dragged]) => dragged),
-			/** remove the shadow element */
-			tap(() => selectAll(".dev-suite__shadow-element").remove()),
-			/** set dragged$ to false */
-			tap(() => dragged$.next(false)),
-			/** with dragDelta$ and gridSize$ */
-			withLatestFrom(dragDelta$, gridSize$),
-			/** map delta x and y to delta percentage */
-			map(([_, { object, x, y }, { width: gridWidth, height: gridHeight }]) => {
-				const xDeltaAsAPercent = (x / gridWidth) * 100
-				const yDeltaAsAPercent = (y / gridHeight) * 100
-				return { object, xDeltaAsAPercent, yDeltaAsAPercent }
-			})
-		)
+		// /** get new object position as sheet percent */
+		// const objectDragNewPos$ = objectMouseUp$.pipe(
+		// 	/** with dragged$ */
+		// 	withLatestFrom(dragged$),
+		// 	/** don't run if mouseup occured but no drag */
+		// 	filter(([_, dragged]) => dragged),
+		// 	/** remove the shadow element */
+		// 	tap(() => selectAll(".dev-suite__shadow-element").remove()),
+		// 	/** set dragged$ to false */
+		// 	tap(() => dragged$.next(false)),
+		// 	/** with dragDelta$ and gridSize$ */
+		// 	withLatestFrom(dragDelta$, gridSize$),
+		// 	/** map delta x and y to delta percentage */
+		// 	map(([_, { object, x, y }, { width: gridWidth, height: gridHeight }]) => {
+		// 		const xDeltaAsAPercent = (x / gridWidth) * 100
+		// 		const yDeltaAsAPercent = (y / gridHeight) * 100
+		// 		return { object, xDeltaAsAPercent, yDeltaAsAPercent }
+		// 	})
+		// )
 
-		/** calculate new property for sheet */
-		const objectDragNewProps$ = objectDragNewPos$.pipe(
-			/** with sheetProps$ */
-			withLatestFrom(sheetProps$),
-			/** create new prop object */
-			map(([{ object, xDeltaAsAPercent, yDeltaAsAPercent }, sheetProps]) => {
-				/** map prop cells */
-				const updateCells = sheetProps.cells.map(cell => {
-					/** if cell is the object dragged */
-					if (cell.name === object.id) {
-						/** update bounds to new delta position */
-						return {
-							...cell,
-							bounds: { ...cell.bounds, x: cell.bounds.x + xDeltaAsAPercent, y: cell.bounds.y + yDeltaAsAPercent },
-							col: undefined,
-							row: undefined,
-							colspan: undefined,
-							rowspan: undefined,
-						}
-					}
-					// else return cell
-					else return cell
-				})
+		// /** calculate new property for sheet */
+		// const objectDragNewProps$ = objectDragNewPos$.pipe(
+		// 	/** with sheetProps$ */
+		// 	withLatestFrom(sheetProps$),
+		// 	/** create new prop object */
+		// 	map(([{ object, xDeltaAsAPercent, yDeltaAsAPercent }, sheetProps]) => {
+		// 		/** map prop cells */
+		// 		const updateCells = sheetProps.cells.map(cell => {
+		// 			/** if cell is the object dragged */
+		// 			if (cell.name === object.id) {
+		// 				/** update bounds to new delta position */
+		// 				return {
+		// 					...cell,
+		// 					bounds: { ...cell.bounds, x: cell.bounds.x + xDeltaAsAPercent, y: cell.bounds.y + yDeltaAsAPercent },
+		// 					col: undefined,
+		// 					row: undefined,
+		// 					colspan: undefined,
+		// 					rowspan: undefined,
+		// 				}
+		// 			}
+		// 			// else return cell
+		// 			else return cell
+		// 		})
 
-				const movedObjectIndex = updateCells.findIndex(cell => cell.name === object.id)
-				const movedObject = updateCells[movedObjectIndex]
-				const resortedCells = [
-					...updateCells.slice(0, movedObjectIndex),
-					...updateCells.slice(movedObjectIndex + 1),
-					movedObject,
-				]
+		// 		const movedObjectIndex = updateCells.findIndex(cell => cell.name === object.id)
+		// 		const movedObject = updateCells[movedObjectIndex]
+		// 		const resortedCells = [
+		// 			...updateCells.slice(0, movedObjectIndex),
+		// 			...updateCells.slice(movedObjectIndex + 1),
+		// 			movedObject,
+		// 		]
 
-				return { ...sheetProps, cells: resortedCells }
-			})
-		)
+		// 		return { ...sheetProps, cells: resortedCells }
+		// 	})
+		// )
 
-		/** with new sheet props, set properties */
-		objectDragNewProps$.pipe(withLatestFrom(sheetObj$)).subscribe(([newProps, sheetObj]) => {
-			sheetObj.setProperties(newProps).then(() => sheetObj.getLayout())
-		})
+		// /** with new sheet props, set properties */
+		// objectDragNewProps$.pipe(withLatestFrom(sheetObj$)).subscribe(([newProps, sheetObj]) => {
+		// 	sheetObj.setProperties(newProps).then(() => sheetObj.getLayout())
+		// })
 
 		// objectDragNewPos$.pipe(
 		// 	withLatestFrom
