@@ -82,45 +82,36 @@ export default qlik => [
 			map(evt => ({ target: evt.target, shiftKey: evt.shiftKey }))
 		)
 
-		/** store selected objects state */
-		const selectedObjects$ = documentClick$.pipe(
-			/** with all objects in sheet */
-			withLatestFrom(sheetObjects$),
-			/** identify object that was clicked */
-			map(([{ target, shiftKey }, sheetObjects]) => {
-				return {
-					clickedObject: sheetObjects.filter(({ el }) => el.contains(target)),
-					shiftKey,
-					sheetObjects,
-				}
-			}),
-			/** update state */
-			scan((acc, { clickedObject, shiftKey, sheetObjects }) => {
-				/** if an object was clicked.. */
-				if (clickedObject.length > 0) {
-					/** if holding shift key */
-					if (shiftKey) {
-						/** if object was already selected, deselect */
-						if (acc.includes(clickedObject[0].id)) {
-							const objectIndex = acc.indexOf(clickedObject[0].id)
-							return [...acc.slice(0, objectIndex), ...acc.slice(objectIndex + 1)]
-						}
-						// else, add/keep object
-						else return [...acc, clickedObject[0].id]
-					}
-					// if not holding shift key, make only this object selected
-					else return [clickedObject[0].id]
-				}
-				// if an object wasn't clicked..
-				else {
-					// if holding shift key, keep prev state
-					if (shiftKey) return acc
-					// else deselect all objects
-					else return []
+		const selectObject$ = new Subject()
+		const clearSelectedObjects$ = new Subject()
+
+		const selectedObjects$ = merge(selectObject$, clearSelectedObjects$).pipe(
+			scan((acc, { type, payload }) => {
+				switch (type) {
+					case "CLEAR_SELECTED_OBJECTS":
+						return []
+
+					case "SELECT_OBJECT":
+						const { object, shiftKey } = payload
+						if (shiftKey) {
+							if (acc.includes(object.id)) {
+								const objectIndex = acc.indexOf(object.id)
+								return [...acc.slice(0, objectIndex), ...acc.slice(objectIndex + 1)]
+							} else return [...acc, object.id]
+						} else return [object.id]
+
+					default:
+						return acc
 				}
 			}, []),
 			shareReplay(1)
 		)
+
+		documentClick$.pipe(withLatestFrom(sheetObjects$)).subscribe(([{ target, shiftKey }, sheetObjects]) => {
+			const clickedObject = sheetObjects.find(({ el }) => el.contains(target))
+			if (clickedObject) selectObject$.next({ type: "SELECT_OBJECT", payload: { object: clickedObject, shiftKey } })
+			else if (shiftKey === false) clearSelectedObjects$.next({ type: "CLEAR_SELECTED_OBJECTS" })
+		})
 
 		/** when selected objects updates.. */
 		selectedObjects$.pipe(withLatestFrom(sheetObjects$)).subscribe(([selectedObjects, sheetObjects]) => {
@@ -130,6 +121,8 @@ export default qlik => [
 				if (selectedObjects.includes(id)) el.classList.add("dev-suite__selected")
 				// else remove class
 				else el.classList.remove("dev-suite__selected")
+
+				el.classList.remove("active")
 			})
 		})
 
@@ -242,22 +235,10 @@ export default qlik => [
 			.subscribe()
 
 		/** drag subjects */
-		const objectMouseDown$ = new Subject()
-		const objectMouseMove$ = new Subject()
-		const objectMouseUp$ = new Subject()
-		const dragged$ = new BehaviorSubject(false)
 		const objectDragging$ = new Subject()
 		const objectDragStart$ = new Subject()
 		const objectDragEnd$ = new Subject()
 		const isDragging$ = new BehaviorSubject(false)
-
-		// select(document).on(
-		// 	"mousemove.drag",
-		// 	() => {
-		// 		noevent()
-		// 	},
-		// 	true
-		// )
 
 		sheetObjects$.subscribe(objects => {
 			objects.forEach(object => {
@@ -284,7 +265,7 @@ export default qlik => [
 						.on(
 							"mouseup.drag",
 							() => {
-								objectDragEnd$.next({ startObjectX: x, startObjectY: y })
+								objectDragEnd$.next({ startObjectX: x, startObjectY: y, event, object })
 								select(event.view).on("mousemove.drag mouseup.drag", null)
 							},
 							true
@@ -332,9 +313,16 @@ export default qlik => [
 		})
 
 		const objectDragNewPos$ = objectDragEnd$.pipe(
-			withLatestFrom(isDragging$),
+			withLatestFrom(isDragging$, sheetObjects$),
 			filter(([_, isDragging]) => isDragging),
-			tap(() => selectAll(".dev-suite__shadow-element").remove()),
+			tap(([{ event, object }, _isDragging, sheetObjects]) => {
+				const { shiftKey } = event
+				const clickedObject = sheetObjects.find(({ id }) => object.id === id)
+				if (clickedObject) selectObject$.next({ type: "SELECT_OBJECT", payload: { object: clickedObject, shiftKey } })
+				else if (shiftKey === false) clearSelectedObjects$.next({ type: "CLEAR_SELECTED_OBJECTS" })
+
+				selectAll(".dev-suite__shadow-element").remove()
+			}),
 			tap(() => isDragging$.next(false)),
 			withLatestFrom(dragDelta$, gridSize$),
 			map(([_, { object, x, y }, { width: gridWidth, height: gridHeight }]) => {
@@ -384,253 +372,5 @@ export default qlik => [
 		objectDragNewProps$.pipe(withLatestFrom(sheetObj$)).subscribe(([newProps, sheetObj]) => {
 			sheetObj.setProperties(newProps).then(() => sheetObj.getLayout())
 		})
-
-		// const mouseDown$ = fromEvent(document, "mousedown")
-		// // const mouseMove$ = fromEvent(document, "mousemove")
-		// const mouseDrag$ = new Observable(observer => {
-		// 	select(document).on("mousemove.drag", () => {
-		// 		// console.log(event)
-		// 		observer.next(event)
-		// 	})
-		// })
-		// const mouseUp$ = fromEvent(document, "mouseup")
-
-		// // const mouseDrag$ = mouseDown$.pipe(switchMap(() => mouseMove$.pipe(takeUntil(mouseUp$))))
-
-		// // mouseDrag$.subscribe(evt => {
-		// // 	console.log(evt)
-		// // })
-		// mouseDrag$.subscribe(console.log)
-
-		// $(document).off("click")
-		/** drag initializers */
-		sheetObjects$.subscribe(objects => {
-			/** for each object.. */
-			objects.forEach(object => {
-				/** select object and call d3 drag */
-				// select(object.el).on("mousedown.drag", () => {
-				// 	console.log("mousedown.drag")
-				// 	select(window)
-				// 		.on("mousemove.drag", () => {
-				// 			noevent()
-				// 		})
-				// 		.on("mouseup.drag", () => {
-				// 			console.log("mouseup.drag")
-				// 			noevent()
-				// 		})
-				// })
-				// select(object.el).call(drag())
-				// select(object.el).on("mousedown.drag", function() {
-				// 	select(event.view)
-				// 		.on(
-				// 			"mousemove.drag",
-				// 			function() {
-				// 				noevent()
-				// 			},
-				// 			true
-				// 		)
-				// 		.on(
-				// 			"mouseup.drag",
-				// 			function() {
-				// 				select(event.view).on("mousemove.drag mouseup.drag", null)
-				// 				noevent()
-				// 			},
-				// 			true
-				// 		)
-				// })
-				// select(object.el).call(
-				// 	drag()
-				// 	// /** start listener */
-				// 	// .on("start", () => {
-				// 	// 	objectMouseDown$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
-				// 	// })
-				// 	// /** drag listener */
-				// 	// .on("drag", () => {
-				// 	// 	objectMouseMove$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
-				// 	// })
-				// 	// /** end listener */
-				// 	// .on("end", () =>
-				// 	// 	objectMouseUp$.next({ object, clientX: event.sourceEvent.clientX, clientY: event.sourceEvent.clientY })
-				// 	// )
-				// )
-			})
-		})
-
-		// /** add shadow element only when dragging */
-		// objectMouseDown$
-		// 	.pipe(
-		// 		switchMap(() =>
-		// 			/** switch to mouse move stream */
-		// 			objectMouseMove$.pipe(
-		// 				/** set dragged$ to true */
-		// 				tap(() => dragged$.next(true)),
-		// 				/** create the shadow element */
-		// 				tap(({ object }) => {
-		// 					const { x, y, width, height } = object.el.getBoundingClientRect()
-		// 					select("body")
-		// 						.append("div")
-		// 						.attr("class", "dev-suite__shadow-element")
-		// 						.style("width", `${width}px`)
-		// 						.style("height", `${height}px`)
-		// 						.style("left", `${x}px`)
-		// 						.style("top", `${y}px`)
-		// 				}),
-		// 				/** only run 1 time */
-		// 				take(1)
-		// 			)
-		// 		)
-		// 	)
-		// 	.subscribe()
-
-		// /** calculate drag distance */
-		// const dragDelta$ = objectMouseDown$.pipe(
-		// 	/** get mouse down start position, and also original object position */
-		// 	map(({ clientX, clientY, object }) => {
-		// 		const { x, y } = object.el.getBoundingClientRect()
-		// 		return { startObjectX: x, startObjectY: y, clientX, clientY }
-		// 	}),
-		// 	/** switch to mouse move stream */
-		// 	switchMap(({ startObjectX, startObjectY, clientX: startClientX, clientY: startClientY }) =>
-		// 		objectMouseMove$.pipe(
-		// 			/** on each mouse move, calculate new x and y pos of shadow element */
-		// 			map(({ object, clientX, clientY }) => ({
-		// 				x: clientX - startClientX,
-		// 				y: clientY - startClientY,
-		// 				startObjectX,
-		// 				startObjectY,
-		// 				object,
-		// 			})),
-		// 			/** stop when mouseup */
-		// 			takeUntil(objectMouseUp$)
-		// 		)
-		// 	),
-		// 	shareReplay(1)
-		// )
-
-		// /** render shadow element on drag update */
-		// dragDelta$.subscribe(({ x, y, startObjectX, startObjectY }) => {
-		// 	select(".dev-suite__shadow-element")
-		// 		.style("left", `${startObjectX + x}px`)
-		// 		.style("top", `${startObjectY + y}px`)
-		// })
-
-		// /** get new object position as sheet percent */
-		// const objectDragNewPos$ = objectMouseUp$.pipe(
-		// 	/** with dragged$ */
-		// 	withLatestFrom(dragged$),
-		// 	/** don't run if mouseup occured but no drag */
-		// 	filter(([_, dragged]) => dragged),
-		// 	/** remove the shadow element */
-		// 	tap(() => selectAll(".dev-suite__shadow-element").remove()),
-		// 	/** set dragged$ to false */
-		// 	tap(() => dragged$.next(false)),
-		// 	/** with dragDelta$ and gridSize$ */
-		// 	withLatestFrom(dragDelta$, gridSize$),
-		// 	/** map delta x and y to delta percentage */
-		// 	map(([_, { object, x, y }, { width: gridWidth, height: gridHeight }]) => {
-		// 		const xDeltaAsAPercent = (x / gridWidth) * 100
-		// 		const yDeltaAsAPercent = (y / gridHeight) * 100
-		// 		return { object, xDeltaAsAPercent, yDeltaAsAPercent }
-		// 	})
-		// )
-
-		// /** calculate new property for sheet */
-		// const objectDragNewProps$ = objectDragNewPos$.pipe(
-		// 	/** with sheetProps$ */
-		// 	withLatestFrom(sheetProps$),
-		// 	/** create new prop object */
-		// 	map(([{ object, xDeltaAsAPercent, yDeltaAsAPercent }, sheetProps]) => {
-		// 		/** map prop cells */
-		// 		const updateCells = sheetProps.cells.map(cell => {
-		// 			/** if cell is the object dragged */
-		// 			if (cell.name === object.id) {
-		// 				/** update bounds to new delta position */
-		// 				return {
-		// 					...cell,
-		// 					bounds: { ...cell.bounds, x: cell.bounds.x + xDeltaAsAPercent, y: cell.bounds.y + yDeltaAsAPercent },
-		// 					col: undefined,
-		// 					row: undefined,
-		// 					colspan: undefined,
-		// 					rowspan: undefined,
-		// 				}
-		// 			}
-		// 			// else return cell
-		// 			else return cell
-		// 		})
-
-		// 		const movedObjectIndex = updateCells.findIndex(cell => cell.name === object.id)
-		// 		const movedObject = updateCells[movedObjectIndex]
-		// 		const resortedCells = [
-		// 			...updateCells.slice(0, movedObjectIndex),
-		// 			...updateCells.slice(movedObjectIndex + 1),
-		// 			movedObject,
-		// 		]
-
-		// 		return { ...sheetProps, cells: resortedCells }
-		// 	})
-		// )
-
-		// /** with new sheet props, set properties */
-		// objectDragNewProps$.pipe(withLatestFrom(sheetObj$)).subscribe(([newProps, sheetObj]) => {
-		// 	sheetObj.setProperties(newProps).then(() => sheetObj.getLayout())
-		// })
-
-		// objectDragNewPos$.pipe(
-		// 	withLatestFrom
-		// )
-		// .pipe(withLatestFrom(sheetObj$, dragDelta$, gridSize$))
-		// .subscribe(([_, sheetObj, { object, x, y, startObjectX, startObjectY }, { width: gridWidth, height: gridHeight }]) => {
-		// 	console.log(x, startObjectX)
-		// 	const deltaX = x - startObjectX
-		// 	const deltaY = y - startObjectY
-
-		// 	const { x: objectStartX, y: objectStartY } = object.el.getBoundingClientRect()
-
-		// 	const pixelWidthAsAPercent = ((objectStartX + deltaX) / gridWidth) * 100
-		// 	const pixelHeightAsAPercent = ((objectStartY = deltaY) / gridHeight) * 100
-
-		// 	selectAll(".dev-suite__shadow-element").remove()
-		// })
-
-		// drag$.subscribe(evt => {
-		// 	// document.querySelector("#grid").classList.remove("dragging")
-		// 	console.log(evt)
-		// })
-		// .pipe(
-		// 	withLatestFrom(sheetObjects$),
-		// 	map(([{ target }]))
-		// )
-		// sheetObjects$
-		// 	.pipe(
-		// 		scan((acc, objects) => {
-		// 			const newRegister = objects.filter(object => !acc.includes(object.el)).map(object => object.el)
-		// 			newRegister.forEach(objectEl => {
-		// 				select(objectEl).call(
-		// 					drag()
-		// 						.on("start", () => {
-		// 							const { x, y, width, height } = objectEl.getBoundingClientRect()
-		// 							select("body")
-		// 								.append("div")
-		// 								.attr("class", "dev-suite__shadow-element")
-		// 								.style("width", `${width}px`)
-		// 								.style("height", `${height}px`)
-		// 								.style("left", `${x}px`)
-		// 								.style("top", `${y}px`)
-		// 						})
-		// 						.on("drag", () => {
-		// 							console.log(event.x, event.y)
-		// 							select(".dev-suite__shadow-element")
-		// 								.style("left", `${event.x}px`)
-		// 								.style("top", `${event.y}px`)
-		// 						})
-		// 						.on("end", () => {
-		// 							selectAll(".dev-suite__shadow-element").remove()
-		// 						})
-		// 				)
-		// 			})
-		// 			return [...acc, ...newRegister]
-		// 		}, [])
-		// 	)
-		// 	.subscribe()
 	},
 ]
