@@ -16,6 +16,7 @@ import {
 	takeUntil,
 	take,
 } from "rxjs/operators"
+import noevent from "./drag/noevent"
 
 export default qlik => [
 	"$scope",
@@ -241,13 +242,50 @@ export default qlik => [
 		const objectMouseUp$ = new Subject()
 		const dragged$ = new BehaviorSubject(false)
 
+		select(window).on(
+			"mousemove.drag",
+			() => {
+				noevent()
+			},
+			true
+		)
+
 		// $(document).off("click")
 		/** drag initializers */
 		sheetObjects$.subscribe(objects => {
 			/** for each object.. */
 			objects.forEach(object => {
 				/** select object and call d3 drag */
-				select(object.el).call(drag())
+				// select(object.el).on("mousedown.drag", () => {
+				// 	console.log("mousedown.drag")
+				// 	select(window)
+				// 		.on("mousemove.drag", () => {
+				// 			noevent()
+				// 		})
+				// 		.on("mouseup.drag", () => {
+				// 			console.log("mouseup.drag")
+				// 			noevent()
+				// 		})
+				// })
+				// select(object.el).call(drag())
+				// select(object.el).on("mousedown.drag", function() {
+				// 	select(event.view)
+				// 		.on(
+				// 			"mousemove.drag",
+				// 			function() {
+				// 				noevent()
+				// 			},
+				// 			true
+				// 		)
+				// 		.on(
+				// 			"mouseup.drag",
+				// 			function() {
+				// 				select(event.view).on("mousemove.drag mouseup.drag", null)
+				// 				noevent()
+				// 			},
+				// 			true
+				// 		)
+				// })
 				// select(object.el).call(
 				// 	drag()
 				// 	// /** start listener */
