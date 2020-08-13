@@ -56,12 +56,18 @@ export default qlik => [
 
 		/** get objects on sheet */
 		const sheetObjects$ = sheetProps$.pipe(
-			delay(250),
+			delay(1),
 			map(sheetProps =>
 				sheetProps.cells.map(cell => ({ id: cell.name, el: document.querySelector(`[tid="${cell.name}"]`) }))
 			),
 			shareReplay(1)
 		)
+
+		sheetObjects$.subscribe(objects => {
+			objects.forEach(({ el }, i) => {
+				el.style.zIndex = i + 1
+			})
+		})
 
 		/** document click listener */
 		const documentClick$ = fromEvent(document, "click").pipe(
@@ -358,13 +364,21 @@ export default qlik => [
 					else return cell
 				})
 
-				return { ...sheetProps, cells: updateCells }
+				const movedObjectIndex = updateCells.findIndex(cell => cell.name === object.id)
+				const movedObject = updateCells[movedObjectIndex]
+				const resortedCells = [
+					...updateCells.slice(0, movedObjectIndex),
+					...updateCells.slice(movedObjectIndex + 1),
+					movedObject,
+				]
+
+				return { ...sheetProps, cells: resortedCells }
 			})
 		)
 
 		/** with new sheet props, set properties */
 		objectDragNewProps$.pipe(withLatestFrom(sheetObj$)).subscribe(([newProps, sheetObj]) => {
-			sheetObj.setProperties(newProps)
+			sheetObj.setProperties(newProps).then(() => sheetObj.getLayout())
 		})
 
 		// objectDragNewPos$.pipe(
