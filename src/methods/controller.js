@@ -1,7 +1,7 @@
 import { select, selectAll, event } from "d3-selection"
 // import { drag } from "d3-drag"
 import { drag } from "./drag"
-import { Subject, from, BehaviorSubject, merge, fromEvent, of } from "rxjs"
+import { Subject, from, BehaviorSubject, merge, fromEvent, of, Observable } from "rxjs"
 import {
 	withLatestFrom,
 	switchMap,
@@ -15,6 +15,8 @@ import {
 	delay,
 	takeUntil,
 	take,
+	mergeMap,
+	pluck,
 } from "rxjs/operators"
 import noevent from "./drag/noevent"
 
@@ -34,7 +36,10 @@ export default qlik => [
 		const sheetObjInvalidation$ = new Subject()
 		const getSheetProps$ = new Subject()
 		const getGridSize$ = new BehaviorSubject(document.querySelector("#grid").getBoundingClientRect())
-		const gridSize$ = getGridSize$.pipe(map(({ width, height }) => ({ width: width - 4, height: height - 4 })))
+		const gridSize$ = getGridSize$.pipe(
+			map(({ width, height }) => ({ width: width - 4, height: height - 4 })),
+			shareReplay(1)
+		)
 
 		// pass to $scope
 		$scope.viz = {
@@ -241,14 +246,161 @@ export default qlik => [
 		const objectMouseMove$ = new Subject()
 		const objectMouseUp$ = new Subject()
 		const dragged$ = new BehaviorSubject(false)
+		const objectDragging$ = new Subject()
+		const objectDragStart$ = new Subject()
+		const objectDragEnd$ = new Subject()
+		const isDragging$ = new BehaviorSubject(false)
 
-		select(window).on(
-			"mousemove.drag",
-			() => {
-				noevent()
-			},
-			true
+		// select(document).on(
+		// 	"mousemove.drag",
+		// 	() => {
+		// 		noevent()
+		// 	},
+		// 	true
+		// )
+
+		sheetObjects$.subscribe(objects => {
+			objects.forEach(object => {
+				select(object.el).on("mousedown.drag", () => {
+					const { x, y, width, height } = object.el.getBoundingClientRect()
+					objectDragStart$.next({
+						startObjectX: x,
+						startObjectY: y,
+						objectWidth: width,
+						objectHeight: height,
+						startClientX: event.clientX,
+						startClientY: event.clientY,
+					})
+
+					select(event.view)
+						.on(
+							"mousemove.drag",
+							() => {
+								noevent()
+								objectDragging$.next({ object, clientX: event.clientX, clientY: event.clientY })
+							},
+							true
+						)
+						.on(
+							"mouseup.drag",
+							() => {
+								objectDragEnd$.next({ startObjectX: x, startObjectY: y })
+								select(event.view).on("mousemove.drag mouseup.drag", null)
+							},
+							true
+						)
+				})
+			})
+		})
+
+		objectDragStart$
+			.pipe(
+				switchMap(({ startObjectX, startObjectY, objectWidth, objectHeight }) =>
+					objectDragging$.pipe(
+						tap(() => isDragging$.next(true)),
+						tap(() => {
+							select("body")
+								.append("div")
+								.attr("class", "dev-suite__shadow-element")
+								.style("width", `${objectWidth}px`)
+								.style("height", `${objectHeight}px`)
+								.style("left", `${startObjectX}px`)
+								.style("top", `${startObjectY}px`)
+						}),
+						take(1)
+					)
+				)
+			)
+			.subscribe()
+
+		const dragDelta$ = objectDragging$.pipe(
+			withLatestFrom(objectDragStart$),
+			map(([{ object, clientX, clientY }, { startObjectX, startObjectY, startClientX, startClientY }]) => ({
+				x: clientX - startClientX,
+				y: clientY - startClientY,
+				startObjectX,
+				startObjectY,
+				object,
+			})),
+			shareReplay(1)
 		)
+
+		dragDelta$.subscribe(({ x, y, startObjectX, startObjectY }) => {
+			select(".dev-suite__shadow-element")
+				.style("left", `${startObjectX + x}px`)
+				.style("top", `${startObjectY + y}px`)
+		})
+
+		const objectDragNewPos$ = objectDragEnd$.pipe(
+			withLatestFrom(isDragging$),
+			filter(([_, isDragging]) => isDragging),
+			tap(() => selectAll(".dev-suite__shadow-element").remove()),
+			tap(() => isDragging$.next(false)),
+			withLatestFrom(dragDelta$, gridSize$),
+			map(([_, { object, x, y }, { width: gridWidth, height: gridHeight }]) => {
+				const xDeltaAsAPercent = (x / gridWidth) * 100
+				const yDeltaAsAPercent = (y / gridHeight) * 100
+				return { object, xDeltaAsAPercent, yDeltaAsAPercent }
+			})
+		)
+
+		/** calculate new property for sheet */
+		const objectDragNewProps$ = objectDragNewPos$.pipe(
+			/** with sheetProps$ */
+			withLatestFrom(sheetProps$),
+			/** create new prop object */
+			map(([{ object, xDeltaAsAPercent, yDeltaAsAPercent }, sheetProps]) => {
+				/** map prop cells */
+				const updateCells = sheetProps.cells.map(cell => {
+					/** if cell is the object dragged */
+					if (cell.name === object.id) {
+						/** update bounds to new delta position */
+						return {
+							...cell,
+							bounds: { ...cell.bounds, x: cell.bounds.x + xDeltaAsAPercent, y: cell.bounds.y + yDeltaAsAPercent },
+							col: undefined,
+							row: undefined,
+							colspan: undefined,
+							rowspan: undefined,
+						}
+					}
+					// else return cell
+					else return cell
+				})
+
+				const movedObjectIndex = updateCells.findIndex(cell => cell.name === object.id)
+				const movedObject = updateCells[movedObjectIndex]
+				const resortedCells = [
+					...updateCells.slice(0, movedObjectIndex),
+					...updateCells.slice(movedObjectIndex + 1),
+					movedObject,
+				]
+
+				return { ...sheetProps, cells: resortedCells }
+			})
+		)
+
+		/** with new sheet props, set properties */
+		objectDragNewProps$.pipe(withLatestFrom(sheetObj$)).subscribe(([newProps, sheetObj]) => {
+			sheetObj.setProperties(newProps).then(() => sheetObj.getLayout())
+		})
+
+		// const mouseDown$ = fromEvent(document, "mousedown")
+		// // const mouseMove$ = fromEvent(document, "mousemove")
+		// const mouseDrag$ = new Observable(observer => {
+		// 	select(document).on("mousemove.drag", () => {
+		// 		// console.log(event)
+		// 		observer.next(event)
+		// 	})
+		// })
+		// const mouseUp$ = fromEvent(document, "mouseup")
+
+		// // const mouseDrag$ = mouseDown$.pipe(switchMap(() => mouseMove$.pipe(takeUntil(mouseUp$))))
+
+		// // mouseDrag$.subscribe(evt => {
+		// // 	console.log(evt)
+		// // })
+		// mouseDrag$.subscribe(console.log)
 
 		// $(document).off("click")
 		/** drag initializers */
