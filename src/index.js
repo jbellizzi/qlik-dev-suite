@@ -1,4 +1,4 @@
-import { initialProperties, template, definition, controller, paint, resize } from "./methods"
+import { beforeDestroy, controller, definition, initialProperties, paint, resize, template } from "./methods"
 import "./style.css"
 
 window.define(["qlik"], function(qlik) {
@@ -8,6 +8,7 @@ window.define(["qlik"], function(qlik) {
 		definition,
 		controller: controller(qlik),
 		paint,
-		resize,
+		resize: resize(qlik),
+		beforeDestroy,
 	}
 })

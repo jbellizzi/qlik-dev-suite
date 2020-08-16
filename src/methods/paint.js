@@ -2,5 +2,5 @@ export default function($element, layout) {
 	// ..paint code here
 	const viz = this.$scope.viz
 
-	viz.getSheetProps$.next()
+	viz.retrieveNewSheetProps$.next()
 }

@@ -1,7 +1,10 @@
-export default function($element, layout) {
-	// ..resize code here
-	const viz = this.$scope.viz
+export default qlik =>
+	function($element, layout) {
+		// ..resize code here
+		const viz = this.$scope.viz
 
-	viz.getSheetProps$.next()
-	viz.getGridSize$.next(document.querySelector("#grid").getBoundingClientRect())
-}
+		// viz.getGridSize$.next(document.querySelector("#grid").getBoundingClientRect())
+		viz.inEditMode$.next(qlik.navigation.getMode())
+		viz.retrieveNewSheetProps$.next()
+		viz.gridSize$.next(document.querySelector("#grid"))
+	}
