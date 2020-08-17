@@ -18,7 +18,7 @@ import {
 	shiftObjects,
 	updateShadowElement,
 } from "../operators"
-import { getSheetObj, selectObjects } from "../util"
+import { getSheetObj, selectObjects, objectResize } from "../util"
 
 export default qlik => [
 	"$scope",
@@ -204,5 +204,7 @@ export default qlik => [
 				setProps(sheetObj$)
 			)
 			.subscribe()
+
+		objectResize(sheetObj$, sheetObjects$, gridSize$, sheetProps$, inEditMode$, destroy$)
 	},
 ]

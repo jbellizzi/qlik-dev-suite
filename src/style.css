@@ -1,3 +1,7 @@
+.qv-mode-edit:not(.ssa-in-edit) .sheet-grid :not(.library-dragging)#grid .qv-gridcell.active {
+	border: none;
+}
+
 .dev-suite__selected {
 	border: 2px solid #2294f2 !important;
 }
@@ -19,4 +23,93 @@
 	background-color: #819199;
 	z-index: 999;
 	opacity: 0.25;
+}
+
+.resize-accessor {
+	position: absolute;
+	z-index: 3;
+	background-color: transparent;
+}
+
+.resize-accessor.resize-top {
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 6px;
+	margin-top: -3px;
+	margin-bottom: -3px;
+	cursor: ns-resize;
+}
+
+.resize-accessor.resize-right {
+	top: 0;
+	left: 100%;
+	width: 6px;
+	height: 100%;
+	margin-top: -3px;
+	margin-bottom: -3px;
+	margin-left: -4px;
+	cursor: ew-resize;
+}
+
+.resize-accessor.resize-bottom {
+	top: auto;
+	left: 0;
+	width: 100%;
+	height: 6px;
+	margin-top: -6px;
+	margin-bottom: -3px;
+	cursor: ns-resize;
+}
+
+.resize-accessor.resize-left {
+	top: 0;
+	left: 0;
+	width: 6px;
+	height: 100%;
+	margin-top: -3px;
+	margin-bottom: -3px;
+	cursor: ew-resize;
+}
+
+.resize-accessor.resize-top-left {
+	top: 0;
+	left: 0;
+	width: 22px;
+	height: 22px;
+	margin-top: -3px;
+	margin-bottom: -3px;
+	cursor: nwse-resize;
+}
+
+.resize-accessor.resize-top-right {
+	top: 0;
+	left: 100%;
+	width: 22px;
+	height: 22px;
+	margin-top: -3px;
+	margin-bottom: -3px;
+	margin-left: -22px;
+	cursor: nesw-resize;
+}
+
+.resize-accessor.resize-bottom-right {
+	top: auto;
+	left: 100%;
+	width: 22px;
+	height: 22px;
+	margin-top: -22px;
+	margin-left: -22px;
+	margin-bottom: -3px;
+	cursor: nwse-resize;
+}
+
+.resize-accessor.resize-bottom-left {
+	top: auto;
+	left: 0;
+	width: 22px;
+	height: 22px;
+	margin-top: -22px;
+	margin-bottom: -3px;
+	cursor: nesw-resize;
 }

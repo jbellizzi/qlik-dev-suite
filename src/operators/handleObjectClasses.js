@@ -13,8 +13,6 @@ export default sheetObjects$ => source =>
 						if (selectedObjects.includes(id)) el.classList.add("dev-suite__selected")
 						// else remove class
 						else el.classList.remove("dev-suite__selected")
-
-						el.classList.remove("active")
 					})
 				})
 			)
