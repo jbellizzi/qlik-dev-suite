@@ -6,6 +6,7 @@ export default () => source =>
 	new Observable(observer =>
 		source
 			.pipe(
+				/** move shadow element */
 				tap(({ x, y, startObjectX, startObjectY }) => {
 					select(".dev-suite__shadow-element")
 						.style("left", `${startObjectX + x}px`)

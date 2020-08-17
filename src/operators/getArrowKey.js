@@ -5,7 +5,9 @@ export default () => source =>
 	new Observable(observer =>
 		source
 			.pipe(
+				/** check if key was an arrow key */
 				filter(evt => [37, 38, 39, 40].includes(evt.keyCode)),
+				/** extract appropriate arrow key and shiftMode */
 				map(({ keyCode, shiftKey }) => {
 					switch (keyCode) {
 						case 37:

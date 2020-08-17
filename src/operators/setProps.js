@@ -5,10 +5,10 @@ export default obj$ => source =>
 	new Observable(observer =>
 		source
 			.pipe(
+				/** with object handle */
 				withLatestFrom(obj$),
-				switchMap(([props, obj]) => {
-					return from(obj.setProperties(props))
-				})
+				/** set properties */
+				switchMap(([props, obj]) => from(obj.setProperties(props)))
 			)
 			.subscribe({
 				next(status) {

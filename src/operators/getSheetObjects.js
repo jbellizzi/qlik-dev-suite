@@ -6,6 +6,7 @@ export default () => source =>
 		source
 			.pipe(
 				delay(1),
+				/** find objects by tid */
 				map(sheetProps =>
 					sheetProps.cells.map(cell => ({ id: cell.name, el: document.querySelector(`[tid="${cell.name}"]`) }))
 				),

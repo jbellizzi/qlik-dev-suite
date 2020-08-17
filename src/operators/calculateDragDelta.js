@@ -5,7 +5,9 @@ export default objectDragStart$ => source =>
 	new Observable(observer =>
 		source
 			.pipe(
+				/** with objectDragStart$ */
 				withLatestFrom(objectDragStart$),
+				/** calculate delta positions */
 				map(([{ object, clientX, clientY }, { startObjectX, startObjectY, startClientX, startClientY }]) => ({
 					x: clientX - startClientX,
 					y: clientY - startClientY,

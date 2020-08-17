@@ -5,7 +5,9 @@ export default obj$ => source =>
 	new Observable(observer =>
 		source
 			.pipe(
+				/** with object handle */
 				withLatestFrom(obj$),
+				/** get object properties */
 				switchMap(([_, obj]) => from(obj.getProperties())),
 				shareReplay(1)
 			)

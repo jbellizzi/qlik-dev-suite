@@ -6,13 +6,18 @@ export default (objects$, selectObject, clearSelectedObjects) => source =>
 	new Observable(observer =>
 		source
 			.pipe(
+				/** get clicked target and shiftkey */
 				map(({ target, shiftKey }) => ({ target, shiftKey })),
+				/** with all objects */
 				withLatestFrom(objects$),
 				tap(([{ target, shiftKey }, sheetObjects]) => {
+					/** check if target is a sheet object */
 					const clickedObject = sheetObjects.find(({ el }) => el.contains(target))
+					/** if object clicked select object */
 					if (clickedObject)
 						selectObject({ type: actions.SELECT_OBJECT, payload: { id: clickedObject.id, shiftMode: shiftKey } })
-					else if (shiftKey === false) clearSelectedObjects({ type: actions.CLEAR_SELECTED_OBJECTS })
+					/** else, clear objects if not in shiftMode */ else if (shiftKey === false)
+						clearSelectedObjects({ type: actions.CLEAR_SELECTED_OBJECTS })
 				})
 			)
 			.subscribe({

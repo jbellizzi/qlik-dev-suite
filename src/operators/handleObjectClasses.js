@@ -5,6 +5,7 @@ export default sheetObjects$ => source =>
 	new Observable(observer =>
 		source
 			.pipe(
+				/** with sheet objects */
 				withLatestFrom(sheetObjects$),
 				tap(([selectedObjects, sheetObjects]) => {
 					sheetObjects.forEach(({ id, el }) => {

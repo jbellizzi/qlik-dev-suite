@@ -6,9 +6,13 @@ export default (objectDragging$, isDragging$) => source =>
 	new Observable(observer =>
 		source
 			.pipe(
+				/** take initial drag start props */
 				switchMap(({ startObjectX, startObjectY, objectWidth, objectHeight }) =>
+					/** for objectDragging$ stream outputs */
 					objectDragging$.pipe(
+						/** set isDragging$ to true */
 						tap(() => isDragging$.next(true)),
+						/** add the shadow element */
 						tap(() => {
 							select("body")
 								.append("div")
@@ -18,6 +22,7 @@ export default (objectDragging$, isDragging$) => source =>
 								.style("left", `${startObjectX}px`)
 								.style("top", `${startObjectY}px`)
 						}),
+						/** only run once for each dragStart */
 						take(1)
 					)
 				)

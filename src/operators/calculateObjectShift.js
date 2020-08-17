@@ -5,11 +5,15 @@ export default gridSize$ => source =>
 	new Observable(observer =>
 		source
 			.pipe(
+				/** with grid size */
 				withLatestFrom(gridSize$),
+				/** map to shift direction and amount */
 				map(([{ key, shiftMode }, { width: gridWidth, height: gridHeight }]) => {
+					/** calculate width and height pixel change as a percentage of grid dimensions */
 					const pixelWidthAsPercent = (1 / gridWidth) * 100 * (shiftMode ? 10 : 1)
 					const pixelHeightAsPercent = (1 / gridHeight) * 100 * (shiftMode ? 10 : 1)
 
+					/** map to appropriate direction */
 					switch (key) {
 						case "left":
 							return { direction: "x", shift: -pixelWidthAsPercent }
