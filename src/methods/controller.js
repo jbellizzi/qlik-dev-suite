@@ -32,6 +32,8 @@ import {
 	calculateObjectShift,
 	shiftObjects,
 	setProps,
+	getDeleteKey,
+	deleteSelectedObjects,
 } from "../operators"
 
 export default qlik => [
@@ -137,6 +139,10 @@ export default qlik => [
 			)
 			.subscribe()
 
+		/** delete keypress */
+		const deleteKeyPress$ = documentKeyDown$.pipe(getDeleteKey())
+
+		deleteKeyPress$.pipe(deleteSelectedObjects(sheetObj$, selectedObjects$)).subscribe()
 		// selectedObjects$.pipe(withLatestFrom(sheetObjects$)).subscribe(handleObjectClasses)
 
 		// /** Initialize */
