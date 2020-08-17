@@ -1,5 +1,5 @@
 import { BehaviorSubject, fromEvent, merge, Subject } from "rxjs"
-import { map, shareReplay, takeUntil, withLatestFrom } from "rxjs/operators"
+import { map, shareReplay, takeUntil, withLatestFrom, tap } from "rxjs/operators"
 import {
 	attachDragListeners,
 	calculateDragDelta,
@@ -68,7 +68,7 @@ export default qlik => [
 		})
 
 		/** sheet properties */
-		const sheetProps$ = merge(retrieveNewSheetProps$, sheetInvalidation$).pipe(
+		const sheetProps$ = merge(retrieveNewSheetProps$, sheetInvalidation$, inEditMode$).pipe(
 			/** check for edit mode */
 			inEditMode(inEditMode$),
 			getSheetProps(sheetObj$),
@@ -77,7 +77,10 @@ export default qlik => [
 		)
 
 		/** get objects on sheet */
-		const sheetObjects$ = sheetProps$.pipe(getSheetObjects())
+		const sheetObjects$ = sheetProps$.pipe(
+			getSheetObjects(),
+			shareReplay(1)
+		)
 
 		/** update object z-index */
 		sheetObjects$.subscribe(objects => {

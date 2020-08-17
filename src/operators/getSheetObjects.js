@@ -1,5 +1,5 @@
 import { Observable } from "rxjs"
-import { delay, map, shareReplay } from "rxjs/operators"
+import { delay, map } from "rxjs/operators"
 
 export default () => source =>
 	new Observable(observer =>
@@ -9,8 +9,7 @@ export default () => source =>
 				/** find objects by tid */
 				map(sheetProps =>
 					sheetProps.cells.map(cell => ({ id: cell.name, el: document.querySelector(`[tid="${cell.name}"]`) }))
-				),
-				shareReplay(1)
+				)
 			)
 			.subscribe({
 				next(objects) {
