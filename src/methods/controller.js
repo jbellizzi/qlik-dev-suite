@@ -22,7 +22,6 @@ import {
 import noevent from "./drag/noevent"
 import { getSheetObj, selectObjects, actions } from "../util"
 import {
-	listenForInvalidation,
 	getSheetProps,
 	getSheetObjects,
 	handleObjectSelection,
@@ -34,6 +33,11 @@ import {
 	setProps,
 	getDeleteKey,
 	deleteSelectedObjects,
+	attachDragListeners,
+	handleObjectDragStart,
+	calculateDragDelta,
+	updateShadowElement,
+	getNewObjectPosition,
 } from "../operators"
 
 export default qlik => [
@@ -43,6 +47,7 @@ export default qlik => [
 		/** get app */
 		const app = $scope.ext.model.enigmaModel.app
 
+		/** destroy listener */
 		const destroy$ = new Subject()
 
 		/** sheet props listener */
@@ -143,6 +148,56 @@ export default qlik => [
 		const deleteKeyPress$ = documentKeyDown$.pipe(getDeleteKey())
 
 		deleteKeyPress$.pipe(deleteSelectedObjects(sheetObj$, selectedObjects$)).subscribe()
+
+		const objectDragStart$ = new Subject().pipe(takeUntil(destroy$))
+		const objectDragging$ = new Subject().pipe(takeUntil(destroy$))
+		const objectDragEnd$ = new Subject().pipe(takeUntil(destroy$))
+		const isDragging$ = new Subject().pipe(takeUntil(destroy$))
+
+		sheetObjects$
+			.pipe(
+				inEditMode(inEditMode$),
+				attachDragListeners(objectDragStart$, objectDragging$, objectDragEnd$)
+			)
+			.subscribe()
+
+		objectDragStart$
+			.pipe(
+				inEditMode(inEditMode$),
+				handleObjectDragStart(objectDragging$, isDragging$)
+			)
+			.subscribe()
+
+		const dragDelta$ = objectDragging$.pipe(
+			inEditMode(inEditMode$),
+			calculateDragDelta(objectDragStart$),
+			shareReplay(1)
+		)
+
+		dragDelta$
+			.pipe(
+				inEditMode(inEditMode$),
+				updateShadowElement()
+			)
+			.subscribe()
+
+		objectDragEnd$
+			.pipe(
+				inEditMode(inEditMode$),
+				getNewObjectPosition(
+					isDragging$,
+					sheetObjects$,
+					dragDelta$,
+					gridSize$,
+					sheetProps$,
+					selectObject,
+					clearSelectedObjects
+				),
+				setProps(sheetObj$)
+			)
+			.subscribe()
+
+		selectedObjects$.subscribe(console.log)
 		// selectedObjects$.pipe(withLatestFrom(sheetObjects$)).subscribe(handleObjectClasses)
 
 		// /** Initialize */
