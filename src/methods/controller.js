@@ -118,11 +118,16 @@ export default qlik => [
 		)
 
 		/** update object z-index */
-		sheetObjects$.subscribe(objects => {
-			objects.forEach(({ el }, i) => {
-				el.style.zIndex = i + 1
+		sheetObjects$
+			.pipe(
+				inEditMode(inEditMode$),
+				takeUntil(destroy$)
+			)
+			.subscribe(objects => {
+				objects.forEach(({ el }, i) => {
+					el.style.zIndex = i + 1
+				})
 			})
-		})
 
 		/** manage sheet selected objects */
 		const { selectedObjects$, select: selectObject, clear: clearSelectedObjects } = selectObjects(destroy$)
@@ -140,7 +145,13 @@ export default qlik => [
 		documentClick$.pipe(handleObjectSelection(sheetObjects$, selectObject, clearSelectedObjects)).subscribe()
 
 		/** handle object classes when selectedobjects updates */
-		selectedObjects$.pipe(handleObjectClasses(sheetObjects$)).subscribe()
+		selectedObjects$
+			.pipe(
+				inEditMode(inEditMode$),
+				handleObjectClasses(sheetObjects$),
+				takeUntil(destroy$)
+			)
+			.subscribe()
 
 		/** on keydown */
 		const documentKeyDown$ = fromEvent(document, "keydown").pipe(
@@ -161,9 +172,15 @@ export default qlik => [
 		const shiftObjects$ = new Subject().pipe(takeUntil(destroy$))
 
 		/** on new position, get all selected objects and pass their position shift to shiftObjects$ */
-		positionShift$.pipe(withLatestFrom(selectedObjects$)).subscribe(([{ direction, shift }, selectedObjects]) => {
-			shiftObjects$.next(selectedObjects.map(id => ({ id, delta: { [direction]: shift } })))
-		})
+		positionShift$
+			.pipe(
+				inEditMode(inEditMode$),
+				withLatestFrom(selectedObjects$),
+				takeUntil(destroy$)
+			)
+			.subscribe(([{ direction, shift }, selectedObjects]) => {
+				shiftObjects$.next(selectedObjects.map(id => ({ id, delta: { [direction]: shift } })))
+			})
 
 		/** on shiftObjects */
 		shiftObjects$
@@ -171,7 +188,8 @@ export default qlik => [
 				/** check edit mode */
 				inEditMode(inEditMode$),
 				shiftObjects(sheetProps$),
-				setProps(sheetObj$)
+				setProps(sheetObj$),
+				takeUntil(destroy$)
 			)
 			.subscribe()
 
@@ -179,7 +197,13 @@ export default qlik => [
 		const deleteKeyPress$ = getDeleteKeyPress(selectedObjects$, destroy$, inEditMode$)
 
 		/** on deleteKeyPress, delete selected objects */
-		deleteKeyPress$.pipe(deleteSelectedObjects(sheetObj$, selectedObjects$)).subscribe()
+		deleteKeyPress$
+			.pipe(
+				inEditMode(inEditMode$),
+				deleteSelectedObjects(sheetObj$, selectedObjects$),
+				takeUntil(destroy$)
+			)
+			.subscribe()
 
 		/** object dragging listeners */
 		const objectDragStart$ = new Subject().pipe(takeUntil(destroy$))
@@ -192,7 +216,8 @@ export default qlik => [
 			.pipe(
 				/** check edit mode */
 				inEditMode(inEditMode$),
-				attachDragListeners(objectDragStart$, objectDragging$, objectDragEnd$)
+				attachDragListeners(objectDragStart$, objectDragging$, objectDragEnd$),
+				takeUntil(destroy$)
 			)
 			.subscribe()
 
@@ -218,7 +243,8 @@ export default qlik => [
 			.pipe(
 				/** check edit mode */
 				inEditMode(inEditMode$),
-				updateShadowElement()
+				updateShadowElement(),
+				takeUntil(destroy$)
 			)
 			.subscribe()
 
@@ -236,7 +262,8 @@ export default qlik => [
 					selectObject,
 					clearSelectedObjects
 				),
-				setProps(sheetObj$)
+				setProps(sheetObj$),
+				takeUntil(destroy$)
 			)
 			.subscribe()
 
