@@ -1,4 +1,4 @@
-import { BehaviorSubject, from, fromEvent, merge, Subject } from "rxjs"
+import { BehaviorSubject, from, fromEvent, merge, Subject, combineLatest } from "rxjs"
 import { map, shareReplay, switchMap, take, takeUntil, withLatestFrom } from "rxjs/operators"
 import {
 	attachDragListeners,
@@ -108,10 +108,10 @@ export default qlik => [
 		/** sheet obj */
 		const sheetObj$ = getSheetObj(app, qlik).pipe(takeUntil(destroy$))
 
-		gridSize$
+		combineLatest(gridSize$, sheetObj$)
 			.pipe(
 				inEditMode(inEditMode$),
-				withLatestFrom(sheetObj$),
+				// withLatestFrom(sheetObj$),
 				moveDevSuite(),
 				takeUntil(destroy$)
 			)
