@@ -1,5 +1,5 @@
 import { BehaviorSubject, from, fromEvent, merge, Subject } from "rxjs"
-import { map, shareReplay, switchMap, takeUntil, withLatestFrom, pluck } from "rxjs/operators"
+import { map, shareReplay, switchMap, take, takeUntil, withLatestFrom } from "rxjs/operators"
 import {
 	attachDragListeners,
 	calculateDragDelta,
@@ -15,13 +15,14 @@ import {
 	handleObjectDragStart,
 	handleObjectSelection,
 	inEditMode,
+	moveDevSuite,
 	pasteObjects,
+	removeDevSuite,
 	saveToLocalStorage,
 	setProps,
 	shiftObjects,
 	syncDevSuite,
 	updateShadowElement,
-	removeDevSuite,
 } from "../operators"
 import { getAppSheets, getDeleteKeyPress, getSheetObj, objectResize, selectObjects } from "../util"
 
@@ -106,6 +107,15 @@ export default qlik => [
 
 		/** sheet obj */
 		const sheetObj$ = getSheetObj(app, qlik).pipe(takeUntil(destroy$))
+
+		gridSize$
+			.pipe(
+				inEditMode(inEditMode$),
+				withLatestFrom(sheetObj$),
+				moveDevSuite(),
+				takeUntil(destroy$)
+			)
+			.subscribe()
 
 		/** listen for sheet invalidations */
 		const sheetInvalidation$ = new Subject()
