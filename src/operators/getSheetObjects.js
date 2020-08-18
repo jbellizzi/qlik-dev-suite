@@ -8,7 +8,11 @@ export default () => source =>
 				delay(10),
 				/** find objects by tid */
 				map(sheetProps =>
-					sheetProps.cells.map(cell => ({ id: cell.name, el: document.querySelector(`[tid="${cell.name}"]`) }))
+					sheetProps.cells.map(cell => ({
+						id: cell.name,
+						el: document.querySelector(`[tid="${cell.name}"]`),
+						type: cell.type,
+					}))
 				)
 			)
 			.subscribe({

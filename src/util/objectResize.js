@@ -41,12 +41,14 @@ export default (sheetObj$, sheetObjects$, gridSize$, sheetProps$, inEditMode$, d
 									() => {
 										event.preventDefault()
 										event.stopImmediatePropagation()
-										objectResizeDragging$.next({
-											position: d,
-											object,
-											clientX: event.clientX,
-											clientY: event.clientY,
-										})
+										if (object.type !== "dev-suite") {
+											objectResizeDragging$.next({
+												position: d,
+												object,
+												clientX: event.clientX,
+												clientY: event.clientY,
+											})
+										}
 									},
 									true
 								)

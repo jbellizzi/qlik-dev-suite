@@ -12,7 +12,7 @@ export default (objects$, selectObject, clearSelectedObjects) => source =>
 				withLatestFrom(objects$),
 				tap(([{ target, shiftKey }, sheetObjects]) => {
 					/** check if target is a sheet object */
-					const clickedObject = sheetObjects.find(({ el }) => el.contains(target))
+					const clickedObject = sheetObjects.find(({ el, type }) => el.contains(target) && type !== "dev-suite")
 					/** if object clicked select object */
 					if (clickedObject)
 						selectObject({ type: actions.SELECT_OBJECT, payload: { id: clickedObject.id, shiftMode: shiftKey } })

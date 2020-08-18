@@ -36,7 +36,9 @@ export default (dragStart$, dragging$, dragEnd$) => source =>
 											event.preventDefault()
 											event.stopImmediatePropagation()
 											/** pass movement to dragging$ */
-											dragging$.next({ object, clientX: event.clientX, clientY: event.clientY })
+											if (object.type !== "dev-suite") {
+												dragging$.next({ object, clientX: event.clientX, clientY: event.clientY })
+											}
 										},
 										true
 									)
