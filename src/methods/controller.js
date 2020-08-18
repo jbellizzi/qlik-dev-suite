@@ -28,6 +28,10 @@ export default qlik => [
 	"$scope",
 	"$element",
 	function($scope, $element) {
+		$element
+			.closest(".object-wrapper")
+			.find(".qv-object-nav a.lui-icon--expand")
+			.addClass("hidden")
 		/** destroy listener */
 		const destroy$ = new Subject()
 

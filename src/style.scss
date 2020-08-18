@@ -130,5 +130,35 @@
 	.chart-container {
 		width: 100%;
 		height: 100%;
+
+		.button-row {
+			height: 100%;
+
+			button {
+				height: 100%;
+			}
+
+			button.remove-button {
+				float: right;
+				padding: 0 6px;
+				border: 1px solid #e6532e;
+				background-color: white;
+				border-radius: 4px;
+
+				&:hover {
+					background-color: #e6532e;
+					color: white;
+					cursor: pointer;
+				}
+			}
+		}
 	}
+}
+
+.qv-mode-edit:not(.ssa-in-edit) #grid .qv-object-dev-suite {
+	opacity: 1;
+}
+
+.qv-object-nav > a.hidden {
+	display: none;
 }
