@@ -14,6 +14,10 @@
 	background: none;
 }
 
+#grid .qv-gridcell .qv-gridresize-point {
+	display: none;
+}
+
 .drag-and-drop-canvas {
 	display: none;
 }
