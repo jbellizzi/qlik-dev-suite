@@ -5,7 +5,7 @@ import { v4 as uuid4 } from "uuid"
 const devSuiteQChild = {
 	qChildren: [],
 	qProperty: {
-		showTitles: true,
+		showTitles: false,
 		title: "",
 		subtitle: "",
 		footnote: "",
@@ -35,11 +35,11 @@ const devSuiteQChild = {
 const devSuiteQCell = {
 	name: "",
 	type: "dev-suite",
-	col: 0,
-	row: 0,
-	colspan: 12,
-	rowspan: 2,
-	bounds: { y: 0, x: 0, width: 50, height: 16.666666666666664 },
+	col: undefined,
+	row: undefined,
+	colspan: undefined,
+	rowspan: undefined,
+	bounds: { y: -5.8050383351588195, x: 12.410656270305394, width: 87.36192332683562, height: 5.494706097115732 },
 }
 
 export default app => source =>

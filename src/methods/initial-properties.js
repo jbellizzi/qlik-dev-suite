@@ -4,4 +4,5 @@ export default {
 		qMeasures: [],
 		qInitialDataFetch: [],
 	},
+	showTitles: false,
 }
