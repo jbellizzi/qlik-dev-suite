@@ -1,5 +1,5 @@
-import { BehaviorSubject, fromEvent, merge, Subject } from "rxjs"
-import { map, shareReplay, takeUntil, withLatestFrom, tap } from "rxjs/operators"
+import { BehaviorSubject, from, fromEvent, merge, Subject } from "rxjs"
+import { map, shareReplay, switchMap, takeUntil, withLatestFrom } from "rxjs/operators"
 import {
 	attachDragListeners,
 	calculateDragDelta,
@@ -16,19 +16,51 @@ import {
 	inEditMode,
 	setProps,
 	shiftObjects,
+	syncDevSuite,
 	updateShadowElement,
 } from "../operators"
-import { getSheetObj, selectObjects, objectResize } from "../util"
+import { getAppSheets, getSheetObj, objectResize, selectObjects } from "../util"
 
 export default qlik => [
 	"$scope",
 	"$element",
 	function($scope, $element) {
+		/** destroy listener */
+		const destroy$ = new Subject()
+
 		/** get app */
 		const app = $scope.ext.model.enigmaModel.app
 
-		/** destroy listener */
-		const destroy$ = new Subject()
+		const appSheetInvalidation$ = new Subject()
+		const appSheetsInvalidationFunction = function() {
+			appSheetInvalidation$.next()
+		}
+
+		const appSheetsObj$ = getAppSheets(app).pipe(shareReplay(1))
+		appSheetsObj$
+			.pipe(
+				switchMap(obj => from(obj.getLayout())),
+				syncDevSuite(app),
+				takeUntil(destroy$)
+			)
+			.subscribe()
+
+		appSheetsObj$.pipe(takeUntil(destroy$)).subscribe(obj => {
+			obj.Invalidated.bind(appSheetsInvalidationFunction)
+		})
+
+		destroy$.pipe(withLatestFrom(appSheetsObj$)).subscribe(([_, obj]) => {
+			obj.Invalidated.unbind(appSheetsInvalidationFunction)
+		})
+
+		appSheetInvalidation$
+			.pipe(
+				withLatestFrom(appSheetsObj$),
+				switchMap(([_, obj]) => from(obj.getLayout())),
+				syncDevSuite(app),
+				takeUntil(destroy$)
+			)
+			.subscribe()
 
 		/** sheet props listener */
 		const retrieveNewSheetProps$ = new Subject().pipe(takeUntil(destroy$))
