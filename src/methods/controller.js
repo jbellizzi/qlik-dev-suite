@@ -1,5 +1,5 @@
 import { BehaviorSubject, from, fromEvent, merge, Subject } from "rxjs"
-import { map, shareReplay, switchMap, takeUntil, withLatestFrom } from "rxjs/operators"
+import { map, shareReplay, switchMap, takeUntil, withLatestFrom, pluck } from "rxjs/operators"
 import {
 	attachDragListeners,
 	calculateDragDelta,
@@ -21,6 +21,7 @@ import {
 	shiftObjects,
 	syncDevSuite,
 	updateShadowElement,
+	removeDevSuite,
 } from "../operators"
 import { getAppSheets, getDeleteKeyPress, getSheetObj, objectResize, selectObjects } from "../util"
 
@@ -32,6 +33,12 @@ export default qlik => [
 			.closest(".object-wrapper")
 			.find(".qv-object-nav a.lui-icon--expand")
 			.addClass("hidden")
+
+		const removeDevSuite$ = new Subject()
+		$element.find("button.remove-button").click(() => {
+			removeDevSuite$.next()
+		})
+
 		/** destroy listener */
 		const destroy$ = new Subject()
 
@@ -56,9 +63,11 @@ export default qlik => [
 			obj.Invalidated.bind(appSheetsInvalidationFunction)
 		})
 
-		destroy$.pipe(withLatestFrom(appSheetsObj$)).subscribe(([_, obj]) => {
-			obj.Invalidated.unbind(appSheetsInvalidationFunction)
-		})
+		merge(destroy$, removeDevSuite$)
+			.pipe(withLatestFrom(appSheetsObj$))
+			.subscribe(([_, obj]) => {
+				obj.Invalidated.unbind(appSheetsInvalidationFunction)
+			})
 
 		appSheetInvalidation$
 			.pipe(
@@ -76,6 +85,15 @@ export default qlik => [
 			map(mode => mode === "edit"),
 			takeUntil(destroy$)
 		)
+
+		removeDevSuite$
+			.pipe(
+				inEditMode(inEditMode$),
+				removeDevSuite(appSheetsObj$, app),
+				takeUntil(destroy$)
+			)
+			.subscribe()
+
 		/** grid size */
 		const gridSize$ = new BehaviorSubject(document.querySelector("#grid")).pipe(
 			map(el => el.getBoundingClientRect()),
