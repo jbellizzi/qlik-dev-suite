@@ -2,6 +2,14 @@
 	border: none;
 } */
 
+.qv-object-dev-suite {
+	display: none;
+}
+
+.qv-mode-edit .qv-object-dev-suite {
+	display: flex;
+}
+
 .dev-suite__selected {
 	border: 2px solid #2294f2 !important;
 }
@@ -116,4 +124,11 @@
 	margin-top: -22px;
 	margin-bottom: -3px;
 	cursor: nesw-resize;
+}
+
+.qv-object-dev-suite {
+	.chart-container {
+		width: 100%;
+		height: 100%;
+	}
 }

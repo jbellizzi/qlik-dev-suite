@@ -1,5 +1,5 @@
 import { beforeDestroy, controller, definition, initialProperties, paint, resize, template } from "./methods"
-import "./style.css"
+import "./style.scss"
 
 window.define(["qlik"], function(qlik) {
 	return {
