@@ -1,5 +1,5 @@
 import { from, Observable } from "rxjs"
-import { filter, switchMap, withLatestFrom } from "rxjs/operators"
+import { filter, map, switchMap, withLatestFrom } from "rxjs/operators"
 
 export default (sheetObj$, selectedObjects$) => source =>
 	new Observable(observer =>
@@ -15,18 +15,22 @@ export default (sheetObj$, selectedObjects$) => source =>
 				withLatestFrom(selectedObjects$),
 				/** stop if no objects are selected */
 				filter(([_propertyTree, selectedObjects]) => selectedObjects.length > 0),
-				/** extract the selected objects from the property tree qChildren and qProperty.cells and set new properties */
-				switchMap(([{ propertyTree, sheetObj }, selectedObjects]) =>
-					sheetObj.setFullPropertyTree({
+				/** map new properties */
+				map(([{ propertyTree, sheetObj }, selectedObjects]) => ({
+					sheetObj,
+					newProps: {
 						...propertyTree,
 						qProperty: {
 							...propertyTree.qProperty,
 							cells: propertyTree.qProperty.cells.filter(cell => !selectedObjects.includes(cell.name)),
 						},
 						qChildren: propertyTree.qChildren.filter(qChild => !selectedObjects.includes(qChild.qProperty.qInfo.qId)),
-					})
-				)
+					},
+				})),
+				/** set new properties */
+				switchMap(({ newProps, sheetObj }) => sheetObj.setFullPropertyTree(newProps))
 			)
+
 			.subscribe({
 				next() {
 					observer.next("deleted")

@@ -6,20 +6,23 @@ import {
 	calculateObjectShift,
 	deleteSelectedObjects,
 	getArrowKey,
-	getDeleteKey,
+	getCopyKey,
 	getNewObjectPosition,
+	getPasteKey,
 	getSheetObjects,
 	getSheetProps,
 	handleObjectClasses,
 	handleObjectDragStart,
 	handleObjectSelection,
 	inEditMode,
+	pasteObjects,
+	saveToLocalStorage,
 	setProps,
 	shiftObjects,
 	syncDevSuite,
 	updateShadowElement,
 } from "../operators"
-import { getAppSheets, getSheetObj, objectResize, selectObjects } from "../util"
+import { getAppSheets, getDeleteKeyPress, getSheetObj, objectResize, selectObjects } from "../util"
 
 export default qlik => [
 	"$scope",
@@ -172,8 +175,8 @@ export default qlik => [
 			)
 			.subscribe()
 
-		/** delete keypress */
-		const deleteKeyPress$ = documentKeyDown$.pipe(getDeleteKey())
+		/** get delete key press for deleting objects */
+		const deleteKeyPress$ = getDeleteKeyPress(selectedObjects$, destroy$, inEditMode$)
 
 		/** on deleteKeyPress, delete selected objects */
 		deleteKeyPress$.pipe(deleteSelectedObjects(sheetObj$, selectedObjects$)).subscribe()
@@ -238,5 +241,23 @@ export default qlik => [
 			.subscribe()
 
 		objectResize(sheetObj$, sheetObjects$, gridSize$, sheetProps$, inEditMode$, destroy$)
+
+		documentKeyDown$
+			.pipe(
+				inEditMode(inEditMode$),
+				getCopyKey(),
+				saveToLocalStorage(sheetObj$, selectedObjects$),
+				takeUntil(destroy$)
+			)
+			.subscribe()
+
+		documentKeyDown$
+			.pipe(
+				inEditMode(inEditMode$),
+				getPasteKey(),
+				pasteObjects(app, sheetObj$),
+				takeUntil(destroy$)
+			)
+			.subscribe()
 	},
 ]
