@@ -9,9 +9,9 @@ export default () => source =>
 					return {
 						devSuiteBounds: {
 							x: 20,
-							y: -(40 / gridHeight) * 100,
+							y: -(50 / gridHeight) * 100,
 							width: 80,
-							height: (40 / gridHeight) * 100,
+							height: (45 / gridHeight) * 100,
 						},
 						sheetObj,
 					}
