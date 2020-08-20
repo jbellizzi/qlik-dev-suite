@@ -1,5 +1,5 @@
 import { from, Observable } from "rxjs"
-import { concatMap, map, switchMap } from "rxjs/operators"
+import { concatMap, map, switchMap, tap, filter } from "rxjs/operators"
 import { v4 as uuid4 } from "uuid"
 
 const devSuiteQChild = {
@@ -32,7 +32,7 @@ const devSuiteQChild = {
 	},
 }
 
-const devSuiteQCell = {
+const devSuiteCell = {
 	name: "",
 	type: "dev-suite",
 	col: undefined,
@@ -47,32 +47,42 @@ export default app => source =>
 		source
 			.pipe(
 				map(layout => layout.qAppObjectList.qItems),
-				map(sheets => sheets.filter(sheet => sheet.qData.cells.find(cell => cell.type === "dev-suite") === undefined)),
 				switchMap(sheets => from(sheets)),
-				concatMap(sheet => from(app.getObject(sheet.qInfo.qId))),
-				switchMap(sheetObj => from(sheetObj.getFullPropertyTree().then(propertyTree => ({ propertyTree, sheetObj })))),
-				map(({ propertyTree, sheetObj }) => {
-					const objId = uuid4()
-
-					return {
-						newProps: {
-							...propertyTree,
-							qChildren: [
-								...propertyTree.qChildren,
-								{
-									...devSuiteQChild,
-									qProperty: { ...devSuiteQChild.qProperty, qInfo: { ...devSuiteQChild.qProperty.qInfo, qId: objId } },
+				concatMap(sheet =>
+					from(app.getObject(sheet.qInfo.qId)).pipe(
+						switchMap(sheetObj =>
+							from(sheetObj.getFullPropertyTree().then(propertyTree => ({ propertyTree, sheetObj })))
+						),
+						filter(
+							({ propertyTree }) =>
+								!propertyTree.qChildren.map(child => child.qProperty.qInfo.qType).includes("dev-suite")
+						),
+						map(({ propertyTree, sheetObj }) => {
+							const objId = uuid4()
+							return {
+								newProps: {
+									...propertyTree,
+									qChildren: [
+										...propertyTree.qChildren,
+										{
+											...devSuiteQChild,
+											qProperty: {
+												...devSuiteQChild.qProperty,
+												qInfo: { ...devSuiteQChild.qProperty.qInfo, qId: objId },
+											},
+										},
+									],
+									qProperty: {
+										...propertyTree.qProperty,
+										cells: [...propertyTree.qProperty.cells, { ...devSuiteCell, name: objId }],
+									},
 								},
-							],
-							qProperty: {
-								...propertyTree.qProperty,
-								cells: [...propertyTree.qProperty.cells, { ...devSuiteQCell, name: objId }],
-							},
-						},
-						sheetObj,
-					}
-				}),
-				switchMap(({ sheetObj, newProps }) => sheetObj.setFullPropertyTree(newProps))
+								sheetObj,
+							}
+						}),
+						switchMap(({ sheetObj, newProps }) => sheetObj.setFullPropertyTree(newProps))
+					)
+				)
 			)
 			.subscribe({
 				next(props) {

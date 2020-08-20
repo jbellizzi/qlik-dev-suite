@@ -1,5 +1,5 @@
 import { from, Observable } from "rxjs"
-import { concatMap, map, mergeMap, withLatestFrom } from "rxjs/operators"
+import { concatMap, map, mergeMap, take, withLatestFrom } from "rxjs/operators"
 
 export default (appSheetsObj$, app) => source =>
 	new Observable(observer =>
@@ -34,7 +34,8 @@ export default (appSheetsObj$, app) => source =>
 								},
 							}
 						}),
-						mergeMap(({ sheetObj, newProps }) => from(sheetObj.setFullPropertyTree(newProps)))
+						mergeMap(({ sheetObj, newProps }) => from(sheetObj.setFullPropertyTree(newProps))),
+						take(1)
 					)
 				)
 			)

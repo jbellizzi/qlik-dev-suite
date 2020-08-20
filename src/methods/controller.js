@@ -1,5 +1,5 @@
-import { BehaviorSubject, from, fromEvent, merge, Subject, combineLatest } from "rxjs"
-import { map, shareReplay, switchMap, take, takeUntil, withLatestFrom } from "rxjs/operators"
+import { BehaviorSubject, combineLatest, from, fromEvent, merge, Subject } from "rxjs"
+import { map, shareReplay, switchMap, takeUntil, withLatestFrom } from "rxjs/operators"
 import {
 	attachDragListeners,
 	calculateDragDelta,
@@ -90,8 +90,7 @@ export default qlik => [
 		removeDevSuite$
 			.pipe(
 				inEditMode(inEditMode$),
-				removeDevSuite(appSheetsObj$, app),
-				takeUntil(destroy$)
+				removeDevSuite(appSheetsObj$, app)
 			)
 			.subscribe()
 
