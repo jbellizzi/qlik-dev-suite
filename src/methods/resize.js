@@ -6,5 +6,5 @@ export default qlik =>
 		// viz.getGridSize$.next(document.querySelector("#grid").getBoundingClientRect())
 		viz.inEditMode$.next(qlik.navigation.getMode())
 		viz.retrieveNewSheetProps$.next()
-		viz.gridSize$.next(document.querySelector("#grid"))
+		viz.gridEl$.next(document.querySelector("#grid"))
 	}

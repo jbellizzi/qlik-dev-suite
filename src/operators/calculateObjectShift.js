@@ -1,30 +1,46 @@
 import { Observable } from "rxjs"
 import { map, withLatestFrom } from "rxjs/operators"
 
-export default gridSize$ => source =>
+export default (toggleMode$, gridSize$) => source =>
 	new Observable(observer =>
 		source
 			.pipe(
 				/** with grid size */
-				withLatestFrom(gridSize$),
+				withLatestFrom(toggleMode$, gridSize$),
 				/** map to shift direction and amount */
-				map(([{ key, shiftMode }, { width: gridWidth, height: gridHeight }]) => {
-					/** calculate width and height pixel change as a percentage of grid dimensions */
-					const pixelWidthAsPercent = (1 / gridWidth) * 100 * (shiftMode ? 10 : 1)
-					const pixelHeightAsPercent = (1 / gridHeight) * 100 * (shiftMode ? 10 : 1)
+				map(
+					([
+						{ key, shiftMode },
+						toggleMode,
+						{ width: gridWidth, height: gridHeight, rows: gridRows, columns: gridColumns },
+					]) => {
+						let shiftX, shiftY, shiftRows, shiftCols
+						if (toggleMode === "pixel") {
+							/** calculate width and height pixel change as a percentage of grid dimensions */
+							shiftX = (1 / gridWidth) * 100 * (shiftMode ? 10 : 1)
+							shiftY = (1 / gridHeight) * 100 * (shiftMode ? 10 : 1)
+						} else {
+							shiftRows = shiftMode ? 2 : 1
+							shiftCols = shiftMode ? 2 : 1
+							shiftX = (shiftCols / gridColumns) * 100
+							shiftY = (shiftRows / gridRows) * 100
+						}
 
-					/** map to appropriate direction */
-					switch (key) {
-						case "left":
-							return { direction: "x", shift: -pixelWidthAsPercent }
-						case "up":
-							return { direction: "y", shift: -pixelHeightAsPercent }
-						case "right":
-							return { direction: "x", shift: pixelWidthAsPercent }
-						case "down":
-							return { direction: "y", shift: pixelHeightAsPercent }
+						const baseObject = { toggleMode, gridRows, gridColumns }
+
+						/** map to appropriate direction */
+						switch (key) {
+							case "left":
+								return { direction: "x", shift: -shiftX, cells: -shiftCols, ...baseObject }
+							case "up":
+								return { direction: "y", shift: -shiftY, cells: -shiftRows, ...baseObject }
+							case "right":
+								return { direction: "x", shift: shiftX, cells: shiftCols, ...baseObject }
+							case "down":
+								return { direction: "y", shift: shiftY, cells: shiftRows, ...baseObject }
+						}
 					}
-				})
+				)
 			)
 			.subscribe({
 				next(props) {

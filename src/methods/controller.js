@@ -114,27 +114,8 @@ export default qlik => [
 			)
 			.subscribe()
 
-		/** grid size */
-		const gridSize$ = new BehaviorSubject(document.querySelector("#grid")).pipe(
-			map(el => el.getBoundingClientRect()),
-			map(({ width, height }) => ({ width: width - 4, height: height - 4 })),
-			takeUntil(destroy$),
-			shareReplay(1)
-		)
-
-		$scope.viz = { retrieveNewSheetProps$, inEditMode$, gridSize$, layout$, destroy$ }
-
 		/** sheet obj */
 		const sheetObj$ = getSheetObj(app, qlik).pipe(takeUntil(destroy$))
-
-		combineLatest(gridSize$, sheetObj$)
-			.pipe(
-				inEditMode(inEditMode$),
-				// withLatestFrom(sheetObj$),
-				moveDevSuite(),
-				takeUntil(destroy$)
-			)
-			.subscribe()
 
 		/** listen for sheet invalidations */
 		const sheetInvalidation$ = new Subject()
@@ -161,6 +142,31 @@ export default qlik => [
 			/** stop when destroy */
 			takeUntil(destroy$)
 		)
+
+		const gridDimensions$ = sheetProps$.pipe(map(({ rows, columns }) => ({ rows, columns })))
+
+		/** grid size */
+		const gridEl$ = new BehaviorSubject(document.querySelector("#grid"))
+
+		const gridSize$ = combineLatest(gridEl$, gridDimensions$).pipe(
+			map(([el, { rows, columns }]) => {
+				const { width, height } = el.getBoundingClientRect()
+				return { width, height, rows, columns }
+			}),
+			map(({ width, height, rows, columns }) => ({ width: width - 4, height: height - 4, rows, columns })),
+			takeUntil(destroy$),
+			shareReplay(1)
+		)
+
+		$scope.viz = { retrieveNewSheetProps$, inEditMode$, gridEl$, layout$, destroy$ }
+
+		combineLatest(gridSize$, sheetObj$)
+			.pipe(
+				inEditMode(inEditMode$),
+				moveDevSuite(),
+				takeUntil(destroy$)
+			)
+			.subscribe()
 
 		/** get objects on sheet */
 		const sheetObjects$ = sheetProps$.pipe(
@@ -216,7 +222,7 @@ export default qlik => [
 		/** arrow keypress */
 		const positionShift$ = documentKeyDown$.pipe(
 			getArrowKey(),
-			calculateObjectShift(gridSize$)
+			calculateObjectShift(toggleMode$, gridSize$)
 		)
 
 		/** function to change position of objects by a delta value */
@@ -229,8 +235,8 @@ export default qlik => [
 				withLatestFrom(selectedObjects$),
 				takeUntil(destroy$)
 			)
-			.subscribe(([{ direction, shift }, selectedObjects]) => {
-				shiftObjects$.next(selectedObjects.map(id => ({ id, delta: { [direction]: shift } })))
+			.subscribe(([{ direction, shift, ...shiftProps }, selectedObjects]) => {
+				shiftObjects$.next(selectedObjects.map(id => ({ id, delta: { [direction]: shift }, ...shiftProps })))
 			})
 
 		/** on shiftObjects */
