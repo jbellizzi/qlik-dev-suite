@@ -2,6 +2,9 @@
 	border: none;
 } */
 
+$switch-knob-radius: 8px;
+$switch-knob-diameter: calc(#{$switch-knob-radius} * 2);
+
 .qv-object-dev-suite {
 	display: none;
 }
@@ -131,15 +134,72 @@
 		width: 100%;
 		height: 100%;
 
-		.button-row {
+		.toolbar-row {
+			display: flex;
+			align-items: center;
 			height: 100%;
+
+			.mode-switch-container {
+				display: flex;
+				align-items: center;
+			}
+
+			.switch {
+				margin: 0 4px;
+				position: relative;
+				display: inline-block;
+				width: calc(#{$switch-knob-diameter}* 2 + 4px);
+				height: calc(#{$switch-knob-diameter} + 4px);
+
+				.slider {
+					position: absolute;
+					cursor: pointer;
+					top: 0;
+					left: 0;
+					right: 0;
+					bottom: 0;
+					background-color: #2196f3;
+					// -webkit-transition: 0.4s;
+					// transition: 0.4s;
+				}
+
+				.slider:before {
+					position: absolute;
+					content: "";
+					height: $switch-knob-diameter;
+					width: $switch-knob-diameter;
+					left: 2px;
+					bottom: 2px;
+					background-color: white;
+					// -webkit-transition: 0.4s;
+					// transition: 0.4s;
+				}
+
+				&.checked .slider {
+					background-color: #2196f3;
+				}
+
+				&.checked .slider:before {
+					-webkit-transform: translateX($switch-knob-diameter);
+					-ms-transform: translateX($switch-knob-diameter);
+					transform: translateX($switch-knob-diameter);
+				}
+
+				.slider.round {
+					border-radius: calc(#{$switch-knob-diameter} + 4px);
+				}
+
+				.slider.round:before {
+					border-radius: 50%;
+				}
+			}
 
 			button {
 				height: 100%;
 			}
 
 			button.remove-button {
-				float: right;
+				margin-left: auto;
 				padding: 0 6px;
 				border: 1px solid #e6532e;
 				background-color: white;

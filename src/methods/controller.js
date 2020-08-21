@@ -40,6 +40,26 @@ export default qlik => [
 			removeDevSuite$.next()
 		})
 
+		const $modeSwitch = $element.find(".toolbar-row .mode-switch-container .switch")
+
+		const backendApi = $scope.$parent.backendApi
+		$modeSwitch.click(() => {
+			backendApi
+				.getProperties()
+				.then(props => ({ ...props, mode: props.mode === "grid" ? "pixel" : "grid" }))
+				.then(newProps => backendApi.setProperties(newProps))
+		})
+
+		const toggleMode$ = new Subject()
+		const layout$ = new Subject()
+
+		layout$.subscribe(layout => toggleMode$.next(layout.mode))
+
+		toggleMode$.subscribe(mode => {
+			if (mode === "grid") $modeSwitch.removeClass("checked")
+			else $modeSwitch.addClass("checked")
+		})
+
 		/** destroy listener */
 		const destroy$ = new Subject()
 
@@ -102,7 +122,7 @@ export default qlik => [
 			shareReplay(1)
 		)
 
-		$scope.viz = { retrieveNewSheetProps$, inEditMode$, gridSize$, destroy$ }
+		$scope.viz = { retrieveNewSheetProps$, inEditMode$, gridSize$, layout$, destroy$ }
 
 		/** sheet obj */
 		const sheetObj$ = getSheetObj(app, qlik).pipe(takeUntil(destroy$))
