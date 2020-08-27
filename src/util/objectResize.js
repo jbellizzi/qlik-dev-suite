@@ -1,12 +1,11 @@
 import { event, select, selectAll } from "d3-selection"
 import { Subject } from "rxjs"
-import { takeUntil, tap, take, switchMap, withLatestFrom, map, filter } from "rxjs/operators"
+import { filter, map, switchMap, take, takeUntil, tap, withLatestFrom } from "rxjs/operators"
 import { inEditMode, setProps } from "../operators"
-import selectObjects from "./selectObjects"
 
 const resizePositions = ["top", "right", "bottom", "left", "top-left", "top-right", "bottom-right", "bottom-left"]
 
-export default (sheetObj$, sheetObjects$, gridSize$, sheetProps$, inEditMode$, destroy$) => {
+export default (sheetObj$, sheetObjects$, gridSize$, sheetProps$, toggleMode$, inEditMode$, destroy$) => {
 	const objectResizeDragStart$ = new Subject().pipe(takeUntil(destroy$))
 	const objectResizeDragging$ = new Subject().pipe(takeUntil(destroy$))
 	const objectResizeDragEnd$ = new Subject().pipe(takeUntil(destroy$))
@@ -15,56 +14,86 @@ export default (sheetObj$, sheetObjects$, gridSize$, sheetProps$, inEditMode$, d
 	sheetObjects$
 		.pipe(
 			inEditMode(inEditMode$),
-			tap(objects => {
-				objects.forEach(object => {
-					const objectEl = select(object.el)
-					const resizeSelection = objectEl.selectAll("div.resize-accessor").data(resizePositions)
-					resizeSelection
-						.enter()
-						.append("div")
-						.attr("class", d => `resize-accessor resize-${d}`)
-						.on("mousedown.drag", d => {
-							const { x, y, width, height } = object.el.getBoundingClientRect()
-							objectResizeDragStart$.next({
-								position: d,
-								startObjectX: x,
-								startObjectY: y,
-								startObjectWidth: width,
-								startObjectHeight: height,
-								startClientX: event.clientX,
-								startClientY: event.clientY,
+			withLatestFrom(sheetProps$, gridSize$, toggleMode$),
+			tap(
+				([
+					objects,
+					sheetProps,
+					{ width: gridWidth, height: gridHeight, columns: gridColumns, rows: gridRows },
+					toggleMode,
+				]) => {
+					objects.forEach(object => {
+						const objectEl = select(object.el)
+						const resizeSelection = objectEl.selectAll("div.resize-accessor").data(resizePositions)
+						resizeSelection
+							.enter()
+							.append("div")
+							.attr("class", d => `resize-accessor resize-${d}`)
+							.on("mousedown.drag", d => {
+								const objBounds = sheetProps.cells.find(cell => cell.name === object.id).bounds
+								let xShift = 0,
+									yShift = 0,
+									width = objBounds.width,
+									height = objBounds.height
+
+								if (toggleMode === "grid") {
+									const col = Math.round((objBounds.x / 100) * gridColumns)
+									const colXPos = (col / gridColumns) * gridWidth
+									const currXPos = (objBounds.x / 100) * gridWidth
+									xShift = colXPos - currXPos
+									const colspan = Math.round((width / 100) * gridColumns)
+									width = (colspan / gridColumns) * gridWidth
+
+									const row = Math.round((objBounds.y / 100) * gridRows)
+									const rowYPos = (row / gridRows) * gridHeight
+									const currYPos = (objBounds.y / 100) * gridHeight
+									yShift = rowYPos - currYPos
+									const rowspan = Math.round((height / 100) * gridRows)
+									height = (rowspan / gridRows) * gridHeight
+								}
+
+								const { x, y, width: objWidth, height: objHeight } = object.el.getBoundingClientRect()
+								objectResizeDragStart$.next({
+									position: d,
+									startObjectX: x + xShift,
+									startObjectY: y + yShift,
+									startObjectWidth: toggleMode === "pixel" ? objWidth : width,
+									startObjectHeight: toggleMode === "pixel" ? objHeight : height,
+									startClientX: event.clientX,
+									startClientY: event.clientY,
+								})
+
+								select(event.view)
+									.on(
+										"mousemove.drag",
+										() => {
+											event.preventDefault()
+											event.stopImmediatePropagation()
+											if (object.type !== "dev-suite") {
+												objectResizeDragging$.next({
+													position: d,
+													object,
+													clientX: event.clientX,
+													clientY: event.clientY,
+												})
+											}
+										},
+										true
+									)
+									.on(
+										"mouseup.drag",
+										() => {
+											objectResizeDragEnd$.next({ startObjectX: x, startObjectY: y, event, object })
+											select(event.view).on("mousemove.drag mouseup.drag", null)
+										},
+										true
+									)
 							})
 
-							select(event.view)
-								.on(
-									"mousemove.drag",
-									() => {
-										event.preventDefault()
-										event.stopImmediatePropagation()
-										if (object.type !== "dev-suite") {
-											objectResizeDragging$.next({
-												position: d,
-												object,
-												clientX: event.clientX,
-												clientY: event.clientY,
-											})
-										}
-									},
-									true
-								)
-								.on(
-									"mouseup.drag",
-									() => {
-										objectResizeDragEnd$.next({ startObjectX: x, startObjectY: y, event, object })
-										select(event.view).on("mousemove.drag mouseup.drag", null)
-									},
-									true
-								)
-						})
-
-					resizeSelection.exit().remove()
-				})
-			})
+						resizeSelection.exit().remove()
+					})
+				}
+			)
 		)
 		.subscribe()
 
@@ -91,14 +120,26 @@ export default (sheetObj$, sheetObjects$, gridSize$, sheetProps$, inEditMode$, d
 
 	const resizeDelta$ = objectResizeDragging$.pipe(
 		inEditMode(inEditMode$),
-		withLatestFrom(objectResizeDragStart$),
+		withLatestFrom(objectResizeDragStart$, toggleMode$, gridSize$),
 		map(
 			([
 				{ object, clientX, clientY },
 				{ position, startObjectX, startObjectY, startObjectWidth, startObjectHeight, startClientX, startClientY },
+				toggleMode,
+				{ width: gridWidth, height: gridHeight, rows: gridRows, columns: gridColumns },
 			]) => {
-				const deltaX = clientX - startClientX
-				const deltaY = clientY - startClientY
+				const mouseX = clientX - startClientX
+				const mouseY = clientY - startClientY
+
+				let deltaX = mouseX,
+					deltaY = mouseY
+
+				if (toggleMode === "grid") {
+					const deltaCol = Math.round((mouseX / gridWidth) * gridColumns)
+					deltaX = (deltaCol / gridColumns) * gridWidth
+					const deltaRow = Math.round((mouseY / gridHeight) * gridRows)
+					deltaY = (deltaRow / gridRows) * gridHeight
+				}
 
 				return {
 					x: ["left", "top-left", "bottom-left"].includes(position) ? startObjectX + deltaX : startObjectX,
@@ -154,31 +195,91 @@ export default (sheetObj$, sheetObjects$, gridSize$, sheetProps$, inEditMode$, d
 			}),
 			tap(() => isResizing$.next(false)),
 			withLatestFrom(resizeDelta$, gridSize$),
-			map(([_, { object, deltaX, deltaY, deltaWidth, deltaHeight }, { width: gridWidth, height: gridHeight }]) => {
-				const deltaXAsAPercent = (deltaX / gridWidth) * 100
-				const deltaYAsAPercent = (deltaY / gridHeight) * 100
-				const deltaWidthAsAPercent = (deltaWidth / gridWidth) * 100
-				const deltaHeightAsAPercent = (deltaHeight / gridHeight) * 100
-				return { object, deltaXAsAPercent, deltaYAsAPercent, deltaWidthAsAPercent, deltaHeightAsAPercent }
-			}),
-			withLatestFrom(sheetProps$),
 			map(
-				([{ object, deltaXAsAPercent, deltaYAsAPercent, deltaWidthAsAPercent, deltaHeightAsAPercent }, sheetProps]) => {
+				([
+					_,
+					{ object, deltaX, deltaY, deltaWidth, deltaHeight },
+					{ width: gridWidth, height: gridHeight, rows: gridRows, columns: gridColumns },
+				]) => {
+					const deltaXAsAPercent = (deltaX / gridWidth) * 100
+					const deltaYAsAPercent = (deltaY / gridHeight) * 100
+					const deltaWidthAsAPercent = (deltaWidth / gridWidth) * 100
+					const deltaHeightAsAPercent = (deltaHeight / gridHeight) * 100
+					return {
+						object,
+						deltaXAsAPercent,
+						deltaYAsAPercent,
+						deltaWidthAsAPercent,
+						deltaHeightAsAPercent,
+						gridWidth,
+						gridHeight,
+						gridRows,
+						gridColumns,
+					}
+				}
+			),
+			withLatestFrom(sheetProps$, toggleMode$),
+			map(
+				([
+					{
+						object,
+						deltaXAsAPercent,
+						deltaYAsAPercent,
+						deltaWidthAsAPercent,
+						deltaHeightAsAPercent,
+						gridWidth,
+						gridHeight,
+						gridRows,
+						gridColumns,
+					},
+					sheetProps,
+					toggleMode,
+				]) => {
 					const updateCells = sheetProps.cells.map(cell => {
 						if (cell.name === object.id) {
-							return {
-								...cell,
-								bounds: {
-									...cell.bounds,
-									x: cell.bounds.x + deltaXAsAPercent,
-									y: cell.bounds.y + deltaYAsAPercent,
-									width: cell.bounds.width + deltaWidthAsAPercent,
-									height: cell.bounds.height + deltaHeightAsAPercent,
-								},
-								col: undefined,
-								row: undefined,
-								colspan: undefined,
-								rowspan: undefined,
+							if (toggleMode === "pixel") {
+								return {
+									...cell,
+									bounds: {
+										...cell.bounds,
+										x: cell.bounds.x + deltaXAsAPercent,
+										y: cell.bounds.y + deltaYAsAPercent,
+										width: cell.bounds.width + deltaWidthAsAPercent,
+										height: cell.bounds.height + deltaHeightAsAPercent,
+									},
+									col: undefined,
+									row: undefined,
+									colspan: undefined,
+									rowspan: undefined,
+								}
+							} else {
+								let col,
+									row,
+									colspan,
+									rowspan,
+									x,
+									y,
+									width = cell.bounds.width,
+									height = cell.bounds.height
+
+								col = Math.round(((cell.bounds.x + deltaXAsAPercent) / 100) * gridColumns)
+								x = (col / gridColumns) * 100
+								colspan = Math.round(((width + deltaWidthAsAPercent) / 100) * gridColumns)
+								width = (colspan / gridColumns) * 100
+
+								row = Math.round(((cell.bounds.y + deltaYAsAPercent) / 100) * gridRows)
+								y = (row / gridRows) * 100
+								rowspan = Math.round(((height + deltaHeightAsAPercent) / 100) * gridRows)
+								height = (rowspan / gridRows) * 100
+
+								return {
+									...cell,
+									bounds: { ...cell.bounds, x, y, width, height },
+									col,
+									row,
+									colspan,
+									rowspan,
+								}
 							}
 						} else return cell
 					})

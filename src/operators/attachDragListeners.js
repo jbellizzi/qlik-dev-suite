@@ -21,30 +21,37 @@ export default (dragStart$, dragging$, dragEnd$, toggleMode$, gridSize$, sheetPr
 							select(object.el)
 								.select(".object-and-panel-wrapper")
 								.on("mousedown.drag", () => {
+									const objBounds = sheetProps.cells.find(cell => cell.name === object.id).bounds
 									let xShift = 0,
-										yShift = 0
+										yShift = 0,
+										width = objBounds.width,
+										height = objBounds.height
+
 									if (toggleMode === "grid") {
-										const objBounds = sheetProps.cells.find(cell => cell.name === object.id).bounds
 										const col = Math.round((objBounds.x / 100) * gridColumns)
 										const colXPos = (col / gridColumns) * gridWidth
 										const currXPos = (objBounds.x / 100) * gridWidth
 										xShift = colXPos - currXPos
+										const colspan = Math.round((width / 100) * gridColumns)
+										width = (colspan / gridColumns) * gridWidth
 
 										const row = Math.round((objBounds.y / 100) * gridRows)
 										const rowYPos = (row / gridRows) * gridHeight
 										const currYPos = (objBounds.y / 100) * gridHeight
 										yShift = rowYPos - currYPos
+										const rowspan = Math.round((height / 100) * gridRows)
+										height = (rowspan / gridRows) * gridHeight
 									}
 
 									/** get object position and dimensions */
 									const objRect = object.el.getBoundingClientRect()
-									const { x, y, width, height } = objRect
+									const { x, y, width: objWidth, height: objHeight } = objRect
 									/** pass to dragStart$ */
 									dragStart$.next({
 										startObjectX: x + xShift,
 										startObjectY: y + yShift,
-										objectWidth: width,
-										objectHeight: height,
+										objectWidth: toggleMode === "pixel" ? objWidth : width,
+										objectHeight: toggleMode === "pixel" ? objHeight : height,
 										startClientX: event.clientX,
 										startClientY: event.clientY,
 										object,

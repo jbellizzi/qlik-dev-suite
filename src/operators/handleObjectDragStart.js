@@ -15,24 +15,13 @@ export default (sheetProps$, objectDragging$, isDragging$, toggleMode$) => sourc
 						tap(() => isDragging$.next(true)),
 						/** add the shadow element */
 						tap(() => {
-							let objectBounds, width, height, x, y
-							// if(toggleMode === 'pixel') {
-							width = objectWidth
-							height = objectHeight
-							x = startObjectX
-							y = startObjectY
-							// } else {
-							// 	const objectBounds = sheetProps.cells.find(cell => cell.name === object.id).bounds
-
-							// }
-
 							select("body")
 								.append("div")
 								.attr("class", "dev-suite__shadow-element")
-								.style("width", `${width}px`)
-								.style("height", `${height}px`)
-								.style("left", `${x}px`)
-								.style("top", `${y}px`)
+								.style("width", `${objectWidth}px`)
+								.style("height", `${objectHeight}px`)
+								.style("left", `${startObjectX}px`)
+								.style("top", `${startObjectY}px`)
 						}),
 						/** only run once for each dragStart */
 						take(1)

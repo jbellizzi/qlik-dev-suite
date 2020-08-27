@@ -325,7 +325,7 @@ export default qlik => [
 			)
 			.subscribe()
 
-		objectResize(sheetObj$, sheetObjects$, gridSize$, sheetProps$, inEditMode$, destroy$)
+		objectResize(sheetObj$, sheetObjects$, gridSize$, sheetProps$, toggleMode$, inEditMode$, destroy$)
 
 		documentKeyDown$
 			.pipe(
