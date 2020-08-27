@@ -273,7 +273,7 @@ export default qlik => [
 			.pipe(
 				/** check edit mode */
 				inEditMode(inEditMode$),
-				attachDragListeners(objectDragStart$, objectDragging$, objectDragEnd$),
+				attachDragListeners(objectDragStart$, objectDragging$, objectDragEnd$, toggleMode$, gridSize$, sheetProps$),
 				takeUntil(destroy$)
 			)
 			.subscribe()
@@ -283,7 +283,7 @@ export default qlik => [
 			.pipe(
 				/** check edit mode */
 				inEditMode(inEditMode$),
-				handleObjectDragStart(objectDragging$, isDragging$)
+				handleObjectDragStart(sheetProps$, objectDragging$, isDragging$, toggleMode$)
 			)
 			.subscribe()
 
@@ -291,7 +291,7 @@ export default qlik => [
 		const dragDelta$ = objectDragging$.pipe(
 			/** check edit mode */
 			inEditMode(inEditMode$),
-			calculateDragDelta(objectDragStart$),
+			calculateDragDelta(objectDragStart$, toggleMode$, gridSize$),
 			shareReplay(1)
 		)
 
@@ -315,6 +315,7 @@ export default qlik => [
 					sheetObjects$,
 					dragDelta$,
 					gridSize$,
+					toggleMode$,
 					sheetProps$,
 					selectObject,
 					clearSelectedObjects
