@@ -24,11 +24,14 @@ export default (sheetObj$, sheetObjects$, gridSize$, sheetProps$, toggleMode$, i
 				]) => {
 					objects.forEach(object => {
 						const objectEl = select(object.el)
-						const resizeSelection = objectEl.selectAll("div.resize-accessor").data(resizePositions)
+						const resizeSelection = objectEl
+							.selectAll("div.resize-accessor")
+							.data(resizePositions.map(d => ({ position: d, gridWidth, gridHeight, gridColumns, gridRows })))
 						resizeSelection
 							.enter()
 							.append("div")
-							.attr("class", d => `resize-accessor resize-${d}`)
+							.attr("class", d => `resize-accessor resize-${d.position}`)
+							.merge(resizeSelection)
 							.on("mousedown.drag", d => {
 								const objBounds = sheetProps.cells.find(cell => cell.name === object.id).bounds
 								let xShift = 0,
@@ -54,7 +57,7 @@ export default (sheetObj$, sheetObjects$, gridSize$, sheetProps$, toggleMode$, i
 
 								const { x, y, width: objWidth, height: objHeight } = object.el.getBoundingClientRect()
 								objectResizeDragStart$.next({
-									position: d,
+									position: d.position,
 									startObjectX: x + xShift,
 									startObjectY: y + yShift,
 									startObjectWidth: toggleMode === "pixel" ? objWidth : width,
@@ -71,7 +74,7 @@ export default (sheetObj$, sheetObjects$, gridSize$, sheetProps$, toggleMode$, i
 											event.stopImmediatePropagation()
 											if (object.type !== "dev-suite") {
 												objectResizeDragging$.next({
-													position: d,
+													position: d.position,
 													object,
 													clientX: event.clientX,
 													clientY: event.clientY,
