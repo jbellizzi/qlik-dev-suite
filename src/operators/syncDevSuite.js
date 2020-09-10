@@ -6,6 +6,7 @@ const devSuiteQChild = {
 	qChildren: [],
 	qProperty: {
 		showTitles: false,
+		mode: "grid",
 		title: "",
 		subtitle: "",
 		footnote: "",
