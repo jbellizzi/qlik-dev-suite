@@ -1,24 +1,25 @@
 {
-  "name": "dev-suite",
-  "version": "0.1.0",
-  "description": "",
-  "scripts": {
-    "build": "qext-scripts",
-    "watch": "qext-scripts -w",
-    "deploy": "qext-scripts -d",
-    "watch-deploy": "qext-scripts -w -d"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "qext-scripts": "2.2.0",
-    "sass": "^1.26.10",
-    "sass-loader": "^9.0.3"
-  },
-  "dependencies": {
-    "d3": "^5.16.0",
-    "rxjs": "^6.6.2",
-    "uuid": "^8.3.0"
-  }
+	"name": "dev-suite",
+	"version": "0.1.0-alpha.0",
+	"description": "",
+	"private": true,
+	"scripts": {
+		"build": "qext-scripts",
+		"watch": "qext-scripts -w",
+		"deploy": "qext-scripts -d",
+		"watch-deploy": "qext-scripts -w -d"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"qext-scripts": "2.2.0",
+		"sass": "^1.26.10",
+		"sass-loader": "^9.0.3"
+	},
+	"dependencies": {
+		"d3": "^5.16.0",
+		"rxjs": "^6.6.2",
+		"uuid": "^8.3.0"
+	}
 }

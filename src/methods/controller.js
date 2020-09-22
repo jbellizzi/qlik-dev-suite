@@ -148,7 +148,7 @@ export default qlik => [
 		/** grid size */
 		const gridEl$ = new BehaviorSubject(document.querySelector("#grid"))
 
-		const gridSize$ = combineLatest(gridEl$, gridDimensions$).pipe(
+		const gridSize$ = combineLatest([gridEl$, gridDimensions$]).pipe(
 			map(([el, { rows, columns }]) => {
 				const { width, height } = el.getBoundingClientRect()
 				return { width, height, rows, columns }
@@ -160,7 +160,7 @@ export default qlik => [
 
 		$scope.viz = { retrieveNewSheetProps$, inEditMode$, gridEl$, layout$, destroy$ }
 
-		combineLatest(gridSize$, sheetObj$)
+		combineLatest([gridSize$, sheetObj$])
 			.pipe(
 				inEditMode(inEditMode$),
 				moveDevSuite(),
@@ -174,17 +174,18 @@ export default qlik => [
 			shareReplay(1)
 		)
 
-		/** update object z-index */
-		sheetObjects$
-			.pipe(
-				inEditMode(inEditMode$),
-				takeUntil(destroy$)
-			)
-			.subscribe(objects => {
-				objects.forEach(({ el }, i) => {
-					el.style.zIndex = i + 1
-				})
-			})
+		/** removing as there are issues with full-screen mode */
+		// /** update object z-index */
+		// sheetObjects$
+		// 	.pipe(
+		// 		inEditMode(inEditMode$),
+		// 		takeUntil(destroy$)
+		// 	)
+		// 	.subscribe(objects => {
+		// 		objects.forEach(({ el }, i) => {
+		// 			el.style.zIndex = i + 1
+		// 		})
+		// 	})
 
 		/** manage sheet selected objects */
 		const { selectedObjects$, select: selectObject, clear: clearSelectedObjects } = selectObjects(destroy$)
