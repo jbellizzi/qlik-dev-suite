@@ -7,12 +7,14 @@
 		"build": "qext-scripts",
 		"watch": "qext-scripts -w",
 		"deploy": "qext-scripts -d",
-		"watch-deploy": "qext-scripts -w -d"
+		"watch-deploy": "qext-scripts -w -d",
+		"publish:build": "node scripts/publish-build.js"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
 	"devDependencies": {
+		"fs-extra": "^9.0.1",
 		"qext-scripts": "2.2.0",
 		"sass": "^1.26.10",
 		"sass-loader": "^9.0.3"
